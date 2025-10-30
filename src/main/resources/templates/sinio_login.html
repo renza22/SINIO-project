@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,28 +15,48 @@
 <body>
 
   <div class="gradient-bg d-flex align-items-center justify-content-center vh-100">
-    <div class="container-glass" id="container">
+    <div class="position-absolute top-0 pt-4 w-100 px-4" style="max-width: 560px;">
+      <div th:if="${loginMessage}" class="alert alert-success shadow-sm" role="alert" th:text="${loginMessage}"></div>
+      <div th:if="${loginError}" class="alert alert-danger shadow-sm" role="alert" th:text="${loginError}"></div>
+      <div th:if="${registerError}" class="alert alert-danger shadow-sm" role="alert" th:text="${registerError}"></div>
+    </div>
+    <div class="container-glass" id="container" th:classappend="${activePanel} == 'register' ? ' active' : ''">
 
       <!-- REGISTER FORM -->
       <div class="form-container sign-up shadow-lg">
-        <form>
+        <form th:action="@{/register}" th:object="${registerRequest}" method="post" novalidate>
           <h2 class="mb-3 fw-bold text-white">Buat Akun SINIO</h2>
           <p class="text-light mb-4">Reservasi kamar hotel kini lebih mudah</p>
-          <input type="text" class="form-control mb-2" placeholder="Nama Lengkap" required>
-          <input type="email" class="form-control mb-2" placeholder="Alamat Email" required>
-          <input type="password" class="form-control mb-3" placeholder="Kata Sandi" required>
-          <button type="button" class="btn btn-light w-100">Daftar</button>
+          <div class="mb-2">
+            <input type="text" class="form-control" placeholder="Nama Lengkap" th:field="*{fullName}" th:classappend="${#fields.hasErrors('fullName')} ? ' is-invalid' : ''" required>
+            <div class="invalid-feedback" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}"></div>
+          </div>
+          <div class="mb-2">
+            <input type="email" class="form-control" placeholder="Alamat Email" th:field="*{email}" th:classappend="${#fields.hasErrors('email')} ? ' is-invalid' : ''" required>
+            <div class="invalid-feedback" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
+          </div>
+          <div class="mb-3">
+            <input type="password" class="form-control" placeholder="Kata Sandi" th:field="*{password}" th:classappend="${#fields.hasErrors('password')} ? ' is-invalid' : ''" required>
+            <div class="invalid-feedback" th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></div>
+          </div>
+          <button type="submit" class="btn btn-light w-100">Daftar</button>
         </form>
       </div>
 
       <!-- LOGIN FORM -->
       <div class="form-container sign-in shadow-lg">
-        <form>
+        <form th:action="@{/login}" th:object="${loginRequest}" method="post" novalidate>
           <h2 class="mb-3 fw-bold text-white">Masuk ke SINIO</h2>
           <p class="text-light mb-4">Nikmati pengalaman reservasi terbaik</p>
-          <input type="email" class="form-control mb-2" placeholder="Alamat Email" required>
-          <input type="password" class="form-control mb-3" placeholder="Kata Sandi" required>
-          <button type="button" class="btn btn-light w-100">Masuk</button>
+          <div class="mb-2">
+            <input type="email" class="form-control" placeholder="Alamat Email" th:field="*{email}" th:classappend="${#fields.hasErrors('email')} ? ' is-invalid' : ''" required>
+            <div class="invalid-feedback" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
+          </div>
+          <div class="mb-3">
+            <input type="password" class="form-control" placeholder="Kata Sandi" th:field="*{password}" th:classappend="${#fields.hasErrors('password')} ? ' is-invalid' : ''" required>
+            <div class="invalid-feedback" th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></div>
+          </div>
+          <button type="submit" class="btn btn-light w-100">Masuk</button>
         </form>
       </div>
 
