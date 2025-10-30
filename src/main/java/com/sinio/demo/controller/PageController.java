@@ -3,6 +3,7 @@ package com.sinio.demo.controller;
 import com.sinio.demo.dto.LoginRequest;
 import com.sinio.demo.dto.RegisterRequest;
 import com.sinio.demo.model.User;
+import com.sinio.demo.model.UserRole;
 import com.sinio.demo.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -13,6 +14,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 @Controller
 public class PageController {
@@ -88,22 +94,43 @@ public class PageController {
     }
 
     private String onLoginSuccess(User user, HttpSession session) {
-        session.setAttribute("userId", user.getId());
-        session.setAttribute("userName", user.getFullName());
-        session.setAttribute("userEmail", user.getEmail());
-        return "redirect:/dashboard";
+        User ensuredUser = userService.ensureRole(user);
+        session.setAttribute("userId", ensuredUser.getId());
+        session.setAttribute("userName", ensuredUser.getFullName());
+        session.setAttribute("userEmail", ensuredUser.getEmail());
+        UserRole role = ensuredUser.getRole() != null ? ensuredUser.getRole() : UserRole.TAMU;
+        session.setAttribute("userRole", role);
+        return redirectForRole(role);
     }
 
     @GetMapping("/dashboard")
-    public String dashboard(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
-        Long userId = (Long) session.getAttribute("userId");
-        if (userId == null) {
+    public String dashboard(HttpSession session, RedirectAttributes redirectAttributes) {
+        UserRole role = resolveUserRole(session);
+        if (role == null) {
+            session.invalidate();
             redirectAttributes.addFlashAttribute("loginError", "Silakan login terlebih dahulu.");
             return "redirect:/login";
         }
-        model.addAttribute("userName", session.getAttribute("userName"));
-        model.addAttribute("userEmail", session.getAttribute("userEmail"));
-        return "sinio_dashboard";
+        return switch (role) {
+            case ADMIN -> "redirect:/dashboard/admin";
+            case KARYAWAN -> "redirect:/dashboard/karyawan";
+            default -> "redirect:/dashboard/tamu";
+        };
+    }
+
+    @GetMapping("/dashboard/tamu")
+    public String guestDashboard(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+        return renderDashboardForRole(session, redirectAttributes, model, UserRole.TAMU, "dashboard_tamu");
+    }
+
+    @GetMapping("/dashboard/admin")
+    public String adminDashboard(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+        return renderDashboardForRole(session, redirectAttributes, model, UserRole.ADMIN, "dashboard_admin");
+    }
+
+    @GetMapping("/dashboard/karyawan")
+    public String employeeDashboard(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+        return renderDashboardForRole(session, redirectAttributes, model, UserRole.KARYAWAN, "dashboard_karyawan");
     }
 
     @GetMapping("/logout")
@@ -112,5 +139,127 @@ public class PageController {
         redirectAttributes.addFlashAttribute("loginMessage", "Anda telah logout.");
         redirectAttributes.addFlashAttribute("activePanel", "login");
         return "redirect:/login";
+    }
+
+    private UserRole resolveUserRole(HttpSession session) {
+        Long userId = (Long) session.getAttribute("userId");
+        if (userId == null) {
+            return null;
+        }
+        Object cachedRole = session.getAttribute("userRole");
+        if (cachedRole instanceof UserRole role) {
+            return role;
+        }
+        if (cachedRole instanceof String roleName) {
+            try {
+                UserRole parsed = UserRole.valueOf(roleName);
+                session.setAttribute("userRole", parsed);
+                return parsed;
+            } catch (IllegalArgumentException ignored) {
+                // fall through to DB lookup
+            }
+        }
+        return userService
+            .findById(userId)
+            .map(userService::ensureRole)
+            .map(user -> {
+                session.setAttribute("userName", user.getFullName());
+                session.setAttribute("userEmail", user.getEmail());
+                UserRole role = user.getRole() != null ? user.getRole() : UserRole.TAMU;
+                session.setAttribute("userRole", role);
+                return role;
+            })
+            .orElse(null);
+    }
+
+    private String renderDashboardForRole(
+        HttpSession session,
+        RedirectAttributes redirectAttributes,
+        Model model,
+        UserRole requiredRole,
+        String viewName
+    ) {
+        UserRole role = resolveUserRole(session);
+        if (role == null) {
+            session.invalidate();
+            redirectAttributes.addFlashAttribute("loginError", "Silakan login terlebih dahulu.");
+            return "redirect:/login";
+        }
+        if (role != requiredRole) {
+            return redirectForRole(role);
+        }
+        populateCommonModel(session, model);
+        switch (requiredRole) {
+            case ADMIN -> populateAdminModel(model);
+            case KARYAWAN -> populateEmployeeModel(model);
+            case TAMU -> populateGuestModel(session, model);
+        }
+        return viewName;
+    }
+
+    private String redirectForRole(UserRole role) {
+        if (role == null) {
+            return "redirect:/dashboard/tamu";
+        }
+        return switch (role) {
+            case ADMIN -> "redirect:/dashboard/admin";
+            case KARYAWAN -> "redirect:/dashboard/karyawan";
+            case TAMU -> "redirect:/dashboard/tamu";
+        };
+    }
+
+    private void populateCommonModel(HttpSession session, Model model) {
+        model.addAttribute("userName", session.getAttribute("userName"));
+        model.addAttribute("userEmail", session.getAttribute("userEmail"));
+    }
+
+    private void populateGuestModel(HttpSession session, Model model) {
+        Map<String, Object> guest = new HashMap<>();
+        guest.put("nama", session.getAttribute("userName"));
+        model.addAttribute("guest", guest);
+        model.addAttribute("aktif", null);
+        model.addAttribute("invoice", null);
+        model.addAttribute("layananList", Collections.emptyList());
+        model.addAttribute("keranjangLayanan", Collections.emptyList());
+        model.addAttribute("layananForm", new LayananForm());
+    }
+
+    private void populateAdminModel(Model model) {
+        Map<String, Object> kpi = new HashMap<>();
+        kpi.put("availableRooms", 0);
+        kpi.put("occupiedRooms", 0);
+        kpi.put("todayRevenue", BigDecimal.ZERO);
+        kpi.put("pendingInvoices", 0);
+        model.addAttribute("kpi", kpi);
+        model.addAttribute("recentReservations", Collections.emptyList());
+        model.addAttribute("recentPayments", Collections.emptyList());
+        model.addAttribute("roomByType", Collections.emptyList());
+    }
+
+    private void populateEmployeeModel(Model model) {
+        model.addAttribute("checkinToday", Collections.emptyList());
+        model.addAttribute("checkoutToday", Collections.emptyList());
+        model.addAttribute("ordersInProgress", Collections.emptyList());
+    }
+
+    public static class LayananForm {
+        private Long layananId;
+        private Integer qty = 1;
+
+        public Long getLayananId() {
+            return layananId;
+        }
+
+        public void setLayananId(Long layananId) {
+            this.layananId = layananId;
+        }
+
+        public Integer getQty() {
+            return qty;
+        }
+
+        public void setQty(Integer qty) {
+            this.qty = qty;
+        }
     }
 }

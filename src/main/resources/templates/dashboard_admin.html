@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="id" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard Admin - Hotel</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --tosca-light: #a6f5e6;
+      --tosca-main: #18b7a6;
+      --tosca-dark: #0e7b71;
+      --glass-bg: rgba(255, 255, 255, 0.18);
+      --glass-border: rgba(255, 255, 255, 0.4);
+      --glass-shadow: 0 4px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    body {
+      background: linear-gradient(160deg, var(--tosca-light), #ffffff 60%);
+      min-height: 100vh;
+      font-family: 'Poppins', sans-serif;
+      color: #053b34;
+    }
+
+    /* ===== Efek Glass ===== */
+    .glass {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      border-radius: 1rem;
+      transition: 0.3s ease-in-out;
+    }
+
+    .glass:hover {
+      background: rgba(255, 255, 255, 0.25);
+      box-shadow: 0 6px 30px rgba(24, 183, 166, 0.25);
+      transform: translateY(-2px);
+    }
+
+    /* ===== Navbar ===== */
+    .navbar-glass {
+      background: rgba(24, 183, 166, 0.2);
+      backdrop-filter: blur(15px);
+      border-bottom: 2px solid rgba(24, 183, 166, 0.4);
+    }
+
+    .navbar-brand {
+      color: var(--tosca-dark);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .nav-link {
+      color: #0b4e49;
+      font-weight: 500;
+    }
+
+    .nav-link:hover {
+      color: var(--tosca-main);
+    }
+
+    /* ===== Tombol ===== */
+    .btn-tosca {
+      background-color: var(--tosca-main);
+      color: #fff;
+      border: none;
+      border-radius: 0.75rem;
+      box-shadow: 0 4px 10px rgba(24, 183, 166, 0.3);
+    }
+
+    .btn-tosca:hover {
+      background-color: var(--tosca-dark);
+      transform: scale(1.03);
+    }
+
+    .btn-outline-tosca {
+      border: 2px solid var(--tosca-main);
+      color: var(--tosca-dark);
+    }
+
+    .btn-outline-tosca:hover {
+      background: var(--tosca-main);
+      color: #fff;
+      border-color: var(--tosca-main);
+    }
+
+    /* ===== Kartu KPI ===== */
+    .kpi-card {
+      background: linear-gradient(145deg, rgba(24, 183, 166, 0.15), rgba(255, 255, 255, 0.5));
+      border-radius: 1rem;
+      box-shadow: var(--glass-shadow);
+      border: 1px solid rgba(24, 183, 166, 0.3);
+      color: var(--tosca-dark);
+      transition: all 0.3s ease-in-out;
+    }
+
+    .kpi-card:hover {
+      box-shadow: 0 8px 35px rgba(24, 183, 166, 0.35);
+      transform: translateY(-4px);
+    }
+
+    .kpi-card h3 {
+      color: var(--tosca-dark);
+    }
+
+    .kpi-card small {
+      color: #0f5951;
+    }
+
+    /* ===== Tabel ===== */
+    .table-kaca thead {
+      background: rgba(24, 183, 166, 0.3);
+      color: #fff;
+      backdrop-filter: blur(8px);
+    }
+
+    .table-kaca tbody tr:hover {
+      background: rgba(24, 183, 166, 0.1);
+    }
+
+    /* ===== Scrollbar ===== */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(var(--tosca-main), var(--tosca-dark));
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-glass sticky-top">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">Dashboard Admin</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav ms-auto gap-2">
+        <li class="nav-item"><a class="nav-link" href="#">Beranda</a></li>
+        <li class="nav-item"><a class="nav-link" href="#">Kamar</a></li>
+        <li class="nav-item"><a class="nav-link" href="#">Reservasi</a></li>
+        <li class="nav-item"><a class="nav-link" href="#">Tagihan</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<main class="container-fluid p-3 p-md-4">
+  <!-- KPIs -->
+  <div class="row g-3">
+    <div class="col-6 col-md-3">
+      <div class="card kpi-card glass p-3">
+        <div class="d-flex justify-content-between align-items-center">
+          <span>Kamar Tersedia</span>
+          <i class="bi bi-door-open fs-4"></i>
+        </div>
+        <h3 th:text="${kpi.availableRooms}">24</h3>
+        <small class="text-muted">Status dari tabel kamar</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card kpi-card glass p-3">
+        <div class="d-flex justify-content-between align-items-center">
+          <span>Kamar Terisi</span>
+          <i class="bi bi-people fs-4"></i>
+        </div>
+        <h3 th:text="${kpi.occupiedRooms}">18</h3>
+        <small class="text-muted">Kamar berstatus TERISI</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card kpi-card glass p-3">
+        <div class="d-flex justify-content-between align-items-center">
+          <span>Pendapatan Hari Ini</span>
+          <i class="bi bi-cash-coin fs-4"></i>
+        </div>
+        <h3 th:text="${#numbers.formatDecimal(kpi.todayRevenue,0,'POINT',2,'COMMA')}">Rp4.080.000</h3>
+        <small class="text-muted">Dari pembayaran & tagihan</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card kpi-card glass p-3">
+        <div class="d-flex justify-content-between align-items-center">
+          <span>Invoice Pending</span>
+          <i class="bi bi-receipt fs-4"></i>
+        </div>
+        <h3 th:text="${kpi.pendingInvoices}">3</h3>
+        <small class="text-muted">Status TAGIHAN  LUNAS</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="row g-3 mt-3">
+    <div class="col-12">
+      <div class="card glass p-3">
+        <div class="d-flex flex-wrap gap-2">
+          <a href="/admin/reservasi/new" class="btn btn-tosca"><i class="bi bi-plus-circle"></i> Buat Reservasi</a>
+          <a href="/admin/kamar" class="btn btn-outline-tosca"><i class="bi bi-door-closed"></i> Kelola Kamar</a>
+          <a href="/admin/layanan" class="btn btn-outline-tosca"><i class="bi bi-basket"></i> Kelola Layanan</a>
+          <a href="/admin/karyawan" class="btn btn-outline-tosca"><i class="bi bi-person-badge"></i> Kelola Karyawan</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reservasi & Pembayaran Terbaru -->
+  <div class="row g-3 mt-1">
+    <div class="col-12 col-lg-7">
+      <div class="card glass">
+        <div class="card-header">
+          <strong class="text-tosca">Reservasi Terbaru</strong>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover table-striped align-middle mb-0 table-kaca">
+              <thead>
+                <tr>
+                  <th>Kode</th>
+                  <th>Tamu</th>
+                  <th>Check-in</th>
+                  <th>Check-out</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="r : ${recentReservations}">
+                  <td th:text="${r.kode}">RSV-0004</td>
+                  <td th:text="${r.tamuNama}">Budi Santoso</td>
+                  <td th:text="${#temporals.format(r.checkinRencana,'dd MMM')}">21 Sep</td>
+                  <td th:text="${#temporals.format(r.checkoutRencana,'dd MMM')}">24 Sep</td>
+                  <td>
+                    <span class="badge rounded-pill" th:classappend="${' text-bg-' + r.badge}" th:text="${r.status}">TERKONFIRMASI</span>
+                  </td>
+                  <td class="text-end">
+                    <a class="btn btn-sm btn-outline-tosca" th:href="@{/admin/reservasi/{id}(id=${r.reservasiId})}">Detail</a>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(recentReservations)}">
+                  <td colspan="6" class="text-center text-muted py-4">Belum ada data</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="card glass h-100">
+        <div class="card-header"><strong class="text-tosca">Pembayaran Terakhir</strong></div>
+        <div class="card-body p-0">
+          <div class="list-group list-group-flush">
+            <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" th:each="p : ${recentPayments}">
+              <div>
+                <div class="fw-semibold" th:text="${p.kodeInvoice}">INV-0004</div>
+                <small class="text-muted" th:text="${p.metodeNama + '  ' + #temporals.format(p.tanggal,'dd MMM HH:mm')}">E-WALLET  21 Sep 21:58</small>
+              </div>
+              <div class="text-end">
+                <div class="fw-bold" th:text="${#numbers.formatDecimal(p.jumlah,0,'POINT',2,'COMMA')}">4.080.000</div>
+                <span class="badge rounded-pill" th:classappend="${p.status=='BERHASIL'?' text-bg-success':(p.status=='PENDING'?' text-bg-warning':' text-bg-danger')}" th:text="${p.status}">PENDING</span>
+              </div>
+            </a>
+            <div class="list-group-item text-center text-muted" th:if="${#lists.isEmpty(recentPayments)}">Belum ada pembayaran</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ringkasan Status Kamar per Tipe -->
+  <div class="row g-3 mt-1">
+    <div class="col-12">
+      <div class="card glass">
+        <div class="card-header"><strong class="text-tosca">Status Kamar per Tipe</strong></div>
+        <div class="card-body p-2 p-md-3">
+          <div class="row g-2" th:with="types=${roomByType}">
+            <div class="col-6 col-md-3" th:each="t : ${types}">
+              <div class="p-3 glass h-100">
+                <div class="d-flex justify-content-between">
+                  <span class="fw-semibold" th:text="${t.namaTipe}">Deluxe</span>
+                  <span class="badge bg-secondary" th:text="${t.total}">12</span>
+                </div>
+                <div class="mt-2 small">
+                  <div>Terisi: <span class="fw-semibold" th:text="${t.terisi}">6</span></div>
+                  <div>Tersedia: <span class="fw-semibold" th:text="${t.tersedia}">5</span></div>
+                  <div>Perawatan: <span class="fw-semibold" th:text="${t.perawatan}">1</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="text-center text-muted" th:if="${#lists.isEmpty(roomByType)}">Tidak ada data tipe kamar</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

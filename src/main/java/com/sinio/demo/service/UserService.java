@@ -2,6 +2,7 @@ package com.sinio.demo.service;
 
 import com.sinio.demo.dto.RegisterRequest;
 import com.sinio.demo.model.User;
+import com.sinio.demo.model.UserRole;
 import com.sinio.demo.repository.UserRepository;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class UserService {
         user.setFullName(request.getFullName().trim());
         user.setEmail(normalizedEmail);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setRole(UserRole.TAMU);
 
         return userRepository.save(user);
     }
@@ -40,6 +42,19 @@ public class UserService {
         return userRepository
             .findByEmail(normalizedEmail)
             .filter(user -> passwordEncoder.matches(rawPassword, user.getPasswordHash()));
+    }
+
+    public Optional<User> findById(Long id) {
+        return userRepository.findById(id);
+    }
+
+    @Transactional
+    public User ensureRole(User user) {
+        if (user.getRole() == null) {
+            user.setRole(UserRole.TAMU);
+            return userRepository.save(user);
+        }
+        return user;
     }
 
     private String normalizeEmail(String email) {

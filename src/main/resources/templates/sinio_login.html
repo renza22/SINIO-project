@@ -15,18 +15,38 @@
 <body>
 
   <div class="gradient-bg d-flex align-items-center justify-content-center vh-100">
-    <div class="position-absolute top-0 pt-4 w-100 px-4" style="max-width: 560px;">
-      <div th:if="${loginMessage}" class="alert alert-success shadow-sm" role="alert" th:text="${loginMessage}"></div>
-      <div th:if="${loginError}" class="alert alert-danger shadow-sm" role="alert" th:text="${loginError}"></div>
-      <div th:if="${registerError}" class="alert alert-danger shadow-sm" role="alert" th:text="${registerError}"></div>
+    <div class="toast-wrapper">
+      <div class="sinio-toast sinio-toast-success" th:if="${loginMessage}" th:text="${loginMessage}"></div>
+      <div class="sinio-toast sinio-toast-danger" th:if="${loginError}" th:text="${loginError}"></div>
+      <div class="sinio-toast sinio-toast-warning" th:if="${registerError}" th:text="${registerError}"></div>
     </div>
     <div class="container-glass" id="container" th:classappend="${activePanel} == 'register' ? ' active' : ''">
+      <div class="mobile-shell d-md-none">
+        <div class="mobile-brand text-center">
+          <span class="mobile-logo badge rounded-pill text-bg-light text-uppercase">sinio</span>
+          <h2 class="mobile-title fw-semibold mt-3">Reservasi tanpa ribet</h2>
+          <p class="mobile-subtitle opacity-75 mb-4">Kelola pemesanan hotel langsung dari genggamanmu.</p>
+        </div>
+        <div class="mobile-tabs">
+          <button type="button" id="mobile-login" class="mobile-tab" th:classappend="${activePanel} == 'login' ? ' active' : ''">
+            <i class='bx bx-log-in'></i><span>Masuk</span>
+          </button>
+          <button type="button" id="mobile-register" class="mobile-tab" th:classappend="${activePanel} == 'register' ? ' active' : ''">
+            <i class='bx bx-user-plus'></i><span>Daftar</span>
+          </button>
+        </div>
+      </div>
 
+      <div class="form-stack">
       <!-- REGISTER FORM -->
       <div class="form-container sign-up shadow-lg">
         <form th:action="@{/register}" th:object="${registerRequest}" method="post" novalidate>
-          <h2 class="mb-3 fw-bold text-white">Buat Akun SINIO</h2>
-          <p class="text-light mb-4">Reservasi kamar hotel kini lebih mudah</p>
+          <div class="mobile-copy d-md-none">
+            <h3 class="fw-semibold">Baru di SINIO?</h3>
+            <p class="mb-3">Buat akun dan mulai pesan kamar sekarang!</p>
+          </div>
+          <h2 class="mb-3 fw-bold text-white d-none d-md-block">Buat Akun SINIO</h2>
+          <p class="text-light mb-4 d-none d-md-block">Reservasi kamar hotel kini lebih mudah</p>
           <div class="mb-2">
             <input type="text" class="form-control" placeholder="Nama Lengkap" th:field="*{fullName}" th:classappend="${#fields.hasErrors('fullName')} ? ' is-invalid' : ''" required>
             <div class="invalid-feedback" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}"></div>
@@ -46,8 +66,12 @@
       <!-- LOGIN FORM -->
       <div class="form-container sign-in shadow-lg">
         <form th:action="@{/login}" th:object="${loginRequest}" method="post" novalidate>
-          <h2 class="mb-3 fw-bold text-white">Masuk ke SINIO</h2>
-          <p class="text-light mb-4">Nikmati pengalaman reservasi terbaik</p>
+          <div class="mobile-copy d-md-none">
+            <h3 class="fw-semibold">Masuk ke SINIO</h3>
+            <p class="mb-3">Nikmati pengalaman reservasi terbaik.</p>
+          </div>
+          <h2 class="mb-3 fw-bold text-white d-none d-md-block">Masuk ke SINIO</h2>
+          <p class="text-light mb-4 d-none d-md-block">Nikmati pengalaman reservasi terbaik</p>
           <div class="mb-2">
             <input type="email" class="form-control" placeholder="Alamat Email" th:field="*{email}" th:classappend="${#fields.hasErrors('email')} ? ' is-invalid' : ''" required>
             <div class="invalid-feedback" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
@@ -58,6 +82,7 @@
           </div>
           <button type="submit" class="btn btn-light w-100">Masuk</button>
         </form>
+      </div>
       </div>
 
       <!-- TOGGLE PANEL -->
