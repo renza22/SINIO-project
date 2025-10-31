@@ -1,5 +1,6 @@
 package com.sinio.demo.controller;
 
+import com.sinio.demo.dto.EmployeeRequest;
 import com.sinio.demo.dto.LoginRequest;
 import com.sinio.demo.dto.RegisterRequest;
 import com.sinio.demo.model.User;
@@ -12,6 +13,7 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -133,6 +135,116 @@ public class PageController {
         return renderDashboardForRole(session, redirectAttributes, model, UserRole.KARYAWAN, "dashboard_karyawan");
     }
 
+    @GetMapping("/admin/karyawan")
+    public String manageEmployees(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+
+        populateCommonModel(session, model);
+        model.addAttribute("employees", userService.findAllEmployees());
+
+        if (!model.containsAttribute("createForm")) {
+            model.addAttribute("createForm", new EmployeeRequest());
+        }
+        if (!model.containsAttribute("editForm")) {
+            model.addAttribute("editForm", new EmployeeRequest());
+        }
+        if (!model.containsAttribute("formMode")) {
+            model.addAttribute("formMode", "create");
+        }
+        return "admin_crud_karyawan";
+    }
+
+    @PostMapping("/admin/karyawan")
+    public String createEmployee(
+        @Valid @ModelAttribute("createForm") EmployeeRequest createForm,
+        BindingResult bindingResult,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("org.springframework.validation.BindingResult.createForm", bindingResult);
+            redirectAttributes.addFlashAttribute("createForm", createForm);
+            redirectAttributes.addFlashAttribute("formMode", "create");
+            return "redirect:/admin/karyawan";
+        }
+
+        try {
+            createForm.setId(null);
+            userService.createEmployee(createForm);
+            redirectAttributes.addFlashAttribute("employeeSuccess", "Karyawan berhasil ditambahkan.");
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("employeeError", ex.getMessage());
+            redirectAttributes.addFlashAttribute("createForm", createForm);
+            redirectAttributes.addFlashAttribute("formMode", "create");
+        }
+        return "redirect:/admin/karyawan";
+    }
+
+    @PostMapping("/admin/karyawan/{id}/update")
+    public String updateEmployee(
+        @PathVariable Long id,
+        @Valid @ModelAttribute("editForm") EmployeeRequest editForm,
+        BindingResult bindingResult,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+
+        editForm.setId(id);
+
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("org.springframework.validation.BindingResult.editForm", bindingResult);
+            redirectAttributes.addFlashAttribute("editForm", editForm);
+            redirectAttributes.addFlashAttribute("formMode", "edit");
+            redirectAttributes.addFlashAttribute("editingId", id);
+            return "redirect:/admin/karyawan";
+        }
+
+        try {
+            userService.updateEmployee(editForm);
+            redirectAttributes.addFlashAttribute("formMode", "create");
+            redirectAttributes.addFlashAttribute("employeeSuccess", "Data karyawan berhasil diperbarui.");
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("employeeError", ex.getMessage());
+            redirectAttributes.addFlashAttribute("editForm", editForm);
+            redirectAttributes.addFlashAttribute("formMode", "edit");
+            redirectAttributes.addFlashAttribute("editingId", id);
+        }
+        return "redirect:/admin/karyawan";
+    }
+
+    @PostMapping("/admin/karyawan/{id}/delete")
+    public String deleteEmployee(
+        @PathVariable Long id,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+
+        Long currentUserId = (Long) session.getAttribute("userId");
+        try {
+            userService.deleteEmployee(id, currentUserId);
+            redirectAttributes.addFlashAttribute("employeeSuccess", "Karyawan berhasil dihapus.");
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("employeeError", ex.getMessage());
+        }
+        return "redirect:/admin/karyawan";
+    }
+
     @GetMapping("/logout")
     public String logout(HttpSession session, RedirectAttributes redirectAttributes) {
         session.invalidate();
@@ -195,6 +307,19 @@ public class PageController {
             case TAMU -> populateGuestModel(session, model);
         }
         return viewName;
+    }
+
+    private String guardRole(HttpSession session, RedirectAttributes redirectAttributes, UserRole requiredRole) {
+        UserRole role = resolveUserRole(session);
+        if (role == null) {
+            session.invalidate();
+            redirectAttributes.addFlashAttribute("loginError", "Silakan login terlebih dahulu.");
+            return "redirect:/login";
+        }
+        if (role != requiredRole) {
+            return redirectForRole(role);
+        }
+        return null;
     }
 
     private String redirectForRole(UserRole role) {

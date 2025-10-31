@@ -243,8 +243,13 @@ button.btn-outline-light {
 
   .toast-wrapper {
     top: 16px;
-    width: min(360px, 92%);
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(100%, calc(100vw - 32px));
+    max-width: 420px;
     gap: 10px;
+    justify-content: center;
+    align-items: center;
   }
 
   .sinio-toast {
@@ -365,10 +370,15 @@ button.btn-outline-light {
   top: 26px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(520px, 92%);
+  width: clamp(260px, 60vw, 520px);
+  max-width: calc(100vw - 48px);
+  padding-inline: 0;
+  right: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  justify-content: center;
+  align-items: center;
   z-index: 3000;
 }
 
@@ -382,6 +392,8 @@ button.btn-outline-light {
   font-weight: 600;
   letter-spacing: 0.02em;
   animation: toastSlide 0.45s ease forwards;
+  text-align: center;
+  width: 100%;
 }
 
 .sinio-toast::before {
