@@ -425,10 +425,17 @@ button.btn-outline-light {
   height: auto;
 }
 
-.mobile-brand .mobile-logo {
-  padding: 0;
-  background: none;
-  letter-spacing: 0;
-  
-  width: 100px;
+.mobile-logo {
+  width: 70px;
+  height: auto;
+  margin-bottom: 16px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.mobile-copy {
+  display: block;
+  text-align: center;
+  margin-bottom: 20px;
 }
