@@ -23,7 +23,6 @@
     <div class="container-glass" id="container" th:classappend="${activePanel} == 'register' ? ' active' : ''">
       <div class="mobile-shell d-md-none">
         <div class="mobile-brand text-center">
-          <span class="mobile-logo badge rounded-pill text-bg-light text-uppercase">sinio</span>
           <h2 class="mobile-title fw-semibold mt-3">Reservasi tanpa ribet</h2>
           <p class="mobile-subtitle opacity-75 mb-4">Kelola pemesanan hotel langsung dari genggamanmu.</p>
         </div>
@@ -42,6 +41,7 @@
       <div class="form-container sign-up shadow-lg">
         <form th:action="@{/register}" th:object="${registerRequest}" method="post" novalidate>
           <div class="mobile-copy d-md-none">
+            <img src="/images/logo-sinio.svg" alt="Logo Sinio" class="logo-gambar mobile-logo">
             <h3 class="fw-semibold">Baru di SINIO?</h3>
             <p class="mb-3">Buat akun dan mulai pesan kamar sekarang!</p>
           </div>
@@ -89,11 +89,13 @@
       <div class="toggle-container">
         <div class="toggle">
           <div class="toggle-panel toggle-left text-white text-center p-5">
+            <img src="/images/logo-sinio.svg" alt="Logo Sinio" class="logo-gambar mb-3">
             <h2 class="fw-bold">Sudah punya akun?</h2>
             <p>Masuk untuk mengelola reservasi hotel Anda</p>
             <button class="btn btn-outline-light mt-3" id="login">Masuk</button>
           </div>
           <div class="toggle-panel toggle-right text-white text-center p-5">
+            <img src="/images/logo-sinio.svg" alt="Logo Sinio" class="logo-gambar mb-3">
             <h2 class="fw-bold">Baru di SINIO?</h2>
             <p>Buat akun dan mulai pesan kamar sekarang!</p>
             <button class="btn btn-outline-light mt-3" id="register">Daftar</button>

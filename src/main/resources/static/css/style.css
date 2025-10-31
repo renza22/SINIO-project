@@ -419,3 +419,16 @@ button.btn-outline-light {
     transform: translate(-50%, 0);
   }
 }
+
+.logo-gambar {
+  width: 130spx; 
+  height: auto;
+}
+
+.mobile-brand .mobile-logo {
+  padding: 0;
+  background: none;
+  letter-spacing: 0;
+  
+  width: 100px;
+}
