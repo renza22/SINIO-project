@@ -31,3 +31,20 @@ attachToggle(mobileLoginBtn, 'login');
 
 const initialState = container?.classList.contains('active') ? 'register' : 'login';
 setActiveState(initialState);
+
+document.addEventListener('DOMContentLoaded', () => {
+    const toastWrapper = document.querySelector('.toast-wrapper');
+    
+    if (toastWrapper) {
+        const displayDuration = 3000;
+        const fadeDuration = 400;
+
+        setTimeout(() => {
+          toastWrapper.classList.add('toast-hide');
+
+          setTimeout(() => {
+            toastWrapper.remove();
+          }, fadeDuration);                
+        }, displayDuration);
+    }
+});
