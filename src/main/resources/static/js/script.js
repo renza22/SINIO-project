@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (toastWrapper) {
         const displayDuration = 3000;
-        const fadeDuration = 400;
+        const fadeDuration = 450;
 
         setTimeout(() => {
           toastWrapper.classList.add('toast-hide');

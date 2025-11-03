@@ -380,6 +380,7 @@ button.btn-outline-light {
   justify-content: center;
   align-items: center;
   z-index: 3000;
+  transition: opacity 0.45s ease-out, transform 0.45s ease-out;
 }
 
 .sinio-toast {
@@ -419,6 +420,15 @@ button.btn-outline-light {
 .sinio-toast-warning {
   background: rgba(255, 247, 210, 0.9);
   color: #7a5b2b;
+}
+
+.toast-wrapper.toast-hide {
+  opacity: 0;
+  transform: translateX(1px);
+}
+
+.sinio-toast.toast-hide {
+  opacity: 0;
 }
 
 .sinio-toast.toast-hide {
