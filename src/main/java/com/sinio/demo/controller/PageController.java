@@ -3,8 +3,11 @@ package com.sinio.demo.controller;
 import com.sinio.demo.dto.EmployeeRequest;
 import com.sinio.demo.dto.LoginRequest;
 import com.sinio.demo.dto.RegisterRequest;
+import com.sinio.demo.dto.RoomRequest;
+import com.sinio.demo.model.Room;
 import com.sinio.demo.model.User;
 import com.sinio.demo.model.UserRole;
+import com.sinio.demo.service.RoomService;
 import com.sinio.demo.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -20,15 +23,18 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Controller
 public class PageController {
 
     private final UserService userService;
+    private final RoomService roomService;
 
-    public PageController(UserService userService) {
+    public PageController(UserService userService, RoomService roomService) {
         this.userService = userService;
+        this.roomService = roomService;
     }
 
     @GetMapping({"/", "/login"})
@@ -155,6 +161,119 @@ public class PageController {
             model.addAttribute("formMode", "create");
         }
         return "admin_crud_karyawan";
+    }
+
+    @PostMapping("/admin/kamar")
+    public String createRoom(
+        @Valid @ModelAttribute("roomForm") RoomRequest roomForm,
+        BindingResult bindingResult,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("org.springframework.validation.BindingResult.roomForm", bindingResult);
+            redirectAttributes.addFlashAttribute("roomForm", roomForm);
+            redirectAttributes.addFlashAttribute("roomFormMode", "create");
+            return "redirect:/admin/kamar";
+        }
+
+        try {
+            roomService.createRoom(roomForm);
+            redirectAttributes.addFlashAttribute("roomSuccess", "Kamar baru berhasil ditambahkan.");
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("roomError", ex.getMessage());
+            redirectAttributes.addFlashAttribute("roomForm", roomForm);
+            redirectAttributes.addFlashAttribute("roomFormMode", "create");
+        }
+        return "redirect:/admin/kamar";
+    }
+
+    @PostMapping("/admin/kamar/{id}/update")
+    public String updateRoom(
+        @PathVariable Long id,
+        @Valid @ModelAttribute("roomEditForm") RoomRequest roomEditForm,
+        BindingResult bindingResult,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+
+        roomEditForm.setId(id);
+
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("org.springframework.validation.BindingResult.roomEditForm", bindingResult);
+            redirectAttributes.addFlashAttribute("roomEditForm", roomEditForm);
+            redirectAttributes.addFlashAttribute("roomFormMode", "edit");
+            redirectAttributes.addFlashAttribute("editingRoomId", id);
+            return "redirect:/admin/kamar";
+        }
+
+        try {
+            roomService.updateRoom(id, roomEditForm);
+            redirectAttributes.addFlashAttribute("roomFormMode", "create");
+            redirectAttributes.addFlashAttribute("roomSuccess", "Data kamar berhasil diperbarui.");
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("roomError", ex.getMessage());
+            redirectAttributes.addFlashAttribute("roomEditForm", roomEditForm);
+            redirectAttributes.addFlashAttribute("roomFormMode", "edit");
+            redirectAttributes.addFlashAttribute("editingRoomId", id);
+        }
+        return "redirect:/admin/kamar";
+    }
+
+    @PostMapping("/admin/kamar/{id}/delete")
+    public String deleteRoom(
+        @PathVariable Long id,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+
+        try {
+            roomService.deleteRoom(id);
+            redirectAttributes.addFlashAttribute("roomSuccess", "Kamar berhasil dihapus.");
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("roomError", ex.getMessage());
+        }
+        return "redirect:/admin/kamar";
+    }
+
+    @GetMapping("/admin/kamar")
+    public String manageRooms(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+
+        populateCommonModel(session, model);
+        List<Room> rooms = roomService.findAllSorted();
+        model.addAttribute("rooms", rooms);
+        model.addAttribute("roomStats", roomService.buildStats(rooms));
+        model.addAttribute("roomActivities", roomService.buildActivities(rooms));
+        model.addAttribute("roomTypes", roomService.getRoomTypes());
+        model.addAttribute("roomStatuses", roomService.getRoomStatuses());
+
+        if (!model.containsAttribute("roomForm")) {
+            model.addAttribute("roomForm", new RoomRequest());
+        }
+        if (!model.containsAttribute("roomEditForm")) {
+            model.addAttribute("roomEditForm", new RoomRequest());
+        }
+        if (!model.containsAttribute("roomFormMode")) {
+            model.addAttribute("roomFormMode", "create");
+        }
+        return "admin_crud_kamar";
     }
 
     @PostMapping("/admin/karyawan")

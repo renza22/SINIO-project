@@ -1,0 +1,93 @@
+package com.sinio.demo.dto;
+
+import com.sinio.demo.model.RoomStatus;
+import com.sinio.demo.model.RoomType;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+public class RoomRequest {
+
+    private Long id;
+
+    @NotBlank(message = "Nomor kamar wajib diisi.")
+    @Size(max = 16, message = "Nomor kamar maksimal 16 karakter.")
+    private String number;
+
+    @NotNull(message = "Tipe kamar wajib dipilih.")
+    private RoomType type;
+
+    @NotNull(message = "Tarif kamar wajib diisi.")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Tarif harus lebih besar dari 0.")
+    @Digits(integer = 10, fraction = 2, message = "Format tarif tidak valid.")
+    private BigDecimal rate;
+
+    @NotNull(message = "Status kamar wajib dipilih.")
+    private RoomStatus status;
+
+    @Size(max = 2000, message = "Catatan maksimal 2000 karakter.")
+    private String note;
+
+    private LocalDateTime lastCleanedAt;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getNumber() {
+        return number;
+    }
+
+    public void setNumber(String number) {
+        this.number = number;
+    }
+
+    public RoomType getType() {
+        return type;
+    }
+
+    public void setType(RoomType type) {
+        this.type = type;
+    }
+
+    public BigDecimal getRate() {
+        return rate;
+    }
+
+    public void setRate(BigDecimal rate) {
+        this.rate = rate;
+    }
+
+    public RoomStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(RoomStatus status) {
+        this.status = status;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
+    }
+
+    public LocalDateTime getLastCleanedAt() {
+        return lastCleanedAt;
+    }
+
+    public void setLastCleanedAt(LocalDateTime lastCleanedAt) {
+        this.lastCleanedAt = lastCleanedAt;
+    }
+}
