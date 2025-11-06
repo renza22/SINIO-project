@@ -51,7 +51,7 @@
 <body>
 <nav class="navbar navbar-expand-lg navbar-glass sticky-top">
   <div class="container-fluid">
-    <a class="navbar-brand fw-bold" href="#">My Stay</a>
+    <a class="navbar-brand fw-bold" href="#">SINIO</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#navGuest">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -78,7 +78,33 @@
   <div class="alert glass d-flex align-items-center" role="alert">
     <i class="bi bi-person-circle me-2 fs-4 text-tosca"></i>
     <div>
-      Halo, <strong th:text="${guest.nama}">Budi Santoso</strong>! Selamat datang di <em>My Stay</em>.
+      Halo, <strong th:text="${guest.nama}">Budi Santoso</strong>! Selamat datang di <em>SINIO</em>.
+    </div>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="row g-3 mb-1">
+    <div class="col-12 col-md-6">
+      <a class="text-decoration-none" href="/guest/reservasi" title="Lihat semua reservasi Anda">
+        <div class="glass p-3 d-flex align-items-center">
+          <i class="bi bi-journal-bookmark text-tosca fs-3 me-3"></i>
+          <div>
+            <div class="fw-semibold">Reservasi Saya</div>
+            <div class="text-muted small">Klik untuk melihat pesanan dan statusnya</div>
+          </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-12 col-md-6">
+      <a class="text-decoration-none" href="/guest/kamar" title="Pilih kamar dari database">
+        <div class="glass p-3 d-flex align-items-center">
+          <i class="bi bi-door-open text-tosca fs-3 me-3"></i>
+          <div>
+            <div class="fw-semibold">Pilih & Pesan Kamar</div>
+            <div class="text-muted small">Jelajahi kamar, fasilitas, dan layanan</div>
+          </div>
+        </div>
+      </a>
     </div>
   </div>
 

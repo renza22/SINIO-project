@@ -23,7 +23,8 @@ public class RoomService {
 
     private static final DateTimeFormatter ACTIVITY_TIME_FORMATTER =
         DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
-            .withLocale(new Locale("id", "ID"));
+            .withLocale(new Locale.Builder().setLanguage("id").setRegion("ID").build());
+
 
     private final RoomRepository roomRepository;
 
@@ -155,5 +156,50 @@ public class RoomService {
 
     public Optional<Room> findById(Long id) {
         return roomRepository.findById(id);
+    }
+
+    // --- Guest utilities (non-persistent helpers) ---
+    public List<String> getDefaultAmenities(RoomType type) {
+        // Basic amenities for all rooms
+        List<String> base = List.of(
+            "Wi‑Fi berkecepatan tinggi",
+            "TV LED kabel",
+            "AC",
+            "Air minum & teh/kopi",
+            "Kamar mandi dalam + shower air panas"
+        );
+
+        return switch (type) {
+            case DELUXE_KING, DELUXE_TWIN, SUPERIOR_TWIN, STANDARD -> base;
+            case STUDIO_LOFT -> concat(base, List.of("Mezzanine/loteng", "Dapur kecil"));
+            case EXECUTIVE_SUITE -> concat(base, List.of("Living room terpisah", "Meja kerja", "Bathtub"));
+            case FAMILY_ROOM -> concat(base, List.of("Ranjang tambahan", "Area keluarga"));
+            case SUITE_PANORAMA -> concat(base, List.of("Pemandangan kota/pantai", "Living room", "Bathtub"));
+            case PRESIDENTIAL_SUITE, VILLA -> concat(base, List.of("Ruang tamu luas", "Ruang makan", "Bathtub & shower terpisah"));
+        };
+    }
+
+    public List<Map<String, Object>> getDefaultRoomServices() {
+        return List.of(
+            service("Laundry", "kg", 25000),
+            service("Room dining", "porsi", 60000),
+            service("Spa (60 menit)", "sesi", 180000),
+            service("Pembersihan ekstra", "kali", 40000)
+        );
+    }
+
+    private Map<String, Object> service(String name, String unit, int price) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("nama", name);
+        m.put("satuan", unit);
+        m.put("hargaSatuan", price);
+        return m;
+    }
+
+    private static <T> List<T> concat(List<T> a, List<T> b) {
+        return new java.util.ArrayList<>() {{
+            addAll(a);
+            addAll(b);
+        }};
     }
 }

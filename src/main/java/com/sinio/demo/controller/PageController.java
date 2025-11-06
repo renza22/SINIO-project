@@ -4,10 +4,12 @@ import com.sinio.demo.dto.EmployeeRequest;
 import com.sinio.demo.dto.LoginRequest;
 import com.sinio.demo.dto.RegisterRequest;
 import com.sinio.demo.dto.RoomRequest;
+import com.sinio.demo.dto.ReservationRequest;
 import com.sinio.demo.model.Room;
 import com.sinio.demo.model.User;
 import com.sinio.demo.model.UserRole;
 import com.sinio.demo.service.RoomService;
+import com.sinio.demo.service.ReservationService;
 import com.sinio.demo.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -31,10 +33,12 @@ public class PageController {
 
     private final UserService userService;
     private final RoomService roomService;
+    private final ReservationService reservationService;
 
-    public PageController(UserService userService, RoomService roomService) {
+    public PageController(UserService userService, RoomService roomService, ReservationService reservationService) {
         this.userService = userService;
         this.roomService = roomService;
+        this.reservationService = reservationService;
     }
 
     @GetMapping({"/", "/login"})
@@ -129,6 +133,118 @@ public class PageController {
     @GetMapping("/dashboard/tamu")
     public String guestDashboard(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
         return renderDashboardForRole(session, redirectAttributes, model, UserRole.TAMU, "dashboard_tamu");
+    }
+
+    // Alias path for guest home
+    @GetMapping("/guest")
+    public String guestHome(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+        return renderDashboardForRole(session, redirectAttributes, model, UserRole.TAMU, "dashboard_tamu");
+    }
+
+    // ---- Guest: browse rooms ----
+    @GetMapping("/guest/kamar")
+    public String guestBrowseRooms(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.TAMU);
+        if (redirect != null) {
+            return redirect;
+        }
+        populateCommonModel(session, model);
+        List<Room> rooms = roomService.findAllSorted();
+        model.addAttribute("rooms", rooms);
+        model.addAttribute("roomTypes", roomService.getRoomTypes());
+        return "guest_kamar";
+    }
+
+    @GetMapping("/guest/kamar/{id}")
+    public String guestRoomDetail(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.TAMU);
+        if (redirect != null) {
+            return redirect;
+        }
+        return roomService.findById(id)
+            .map(room -> {
+                populateCommonModel(session, model);
+                model.addAttribute("room", room);
+                model.addAttribute("amenities", roomService.getDefaultAmenities(room.getType()));
+                model.addAttribute("services", roomService.getDefaultRoomServices());
+                return "guest_kamar_detail";
+            })
+            .orElseGet(() -> {
+                redirectAttributes.addFlashAttribute("guestError", "Kamar tidak ditemukan.");
+                return "redirect:/guest/kamar";
+            });
+    }
+
+    // ---- Guest: reservations (placeholder list) ----
+    @GetMapping("/guest/reservasi")
+    public String guestReservations(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.TAMU);
+        if (redirect != null) {
+            return redirect;
+        }
+        populateCommonModel(session, model);
+        try {
+            Long userId = (Long) session.getAttribute("userId");
+            var reservations = reservationService.toListView(reservationService.findByUser(userId));
+            model.addAttribute("reservations", reservations);
+        } catch (Exception ex) {
+            model.addAttribute("reservations", java.util.Collections.emptyList());
+            model.addAttribute("guestError", "Gagal memuat reservasi: " + ex.getMessage());
+        }
+        return "guest_reservasi";
+    }
+
+    // ---- Guest: create reservation ----
+    @PostMapping("/guest/reservasi")
+    public String createReservation(
+        @Valid @ModelAttribute("reservationRequest") ReservationRequest reservationRequest,
+        BindingResult bindingResult,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.TAMU);
+        if (redirect != null) {
+            return redirect;
+        }
+        Long userId = (Long) session.getAttribute("userId");
+
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("guestError", "Input reservasi tidak valid.");
+            return "redirect:/guest/kamar/" + reservationRequest.getRoomId();
+        }
+
+        try {
+            reservationService.create(userId, reservationRequest);
+            redirectAttributes.addFlashAttribute("guestMessage", "Reservasi berhasil dibuat.");
+            return "redirect:/guest/reservasi";
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("guestError", ex.getMessage());
+            return "redirect:/guest/kamar/" + reservationRequest.getRoomId();
+        }
+    }
+
+    // ---- Guest: reservation detail ----
+    @GetMapping("/guest/reservasi/{id}")
+    public String reservationDetail(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.TAMU);
+        if (redirect != null) {
+            return redirect;
+        }
+        Long userId = (Long) session.getAttribute("userId");
+        return reservationService
+            .findByUser(userId)
+            .stream()
+            .filter(r -> r.getId().equals(id))
+            .findFirst()
+            .map(r -> {
+                populateCommonModel(session, model);
+                model.addAttribute("reservation", r);
+                return "guest_reservasi_detail";
+            })
+            .orElseGet(() -> {
+                redirectAttributes.addFlashAttribute("guestError", "Reservasi tidak ditemukan.");
+                return "redirect:/guest/reservasi";
+            });
     }
 
     @GetMapping("/dashboard/admin")

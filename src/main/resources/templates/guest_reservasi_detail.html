@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="id" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Detail Reservasi</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root{ --tosca-50:#ecfdfb; --tosca-500:#18b7a6; --tosca-600:#119a8d; --tosca-700:#0e7b71; --glass-bg: rgba(255,255,255,.18); --glass-stroke: rgba(255,255,255,.4); --glass-shadow: 0 6px 28px rgba(0,0,0,.18); }
+    body{ background: radial-gradient(1200px 800px at 10% -10%, rgba(24,183,166,.22), transparent 55%), radial-gradient(900px 600px at 120% 30%, rgba(63,210,189,.20), transparent 55%), linear-gradient(180deg, #f7fffe 0%, #f9fffd 60%, #f7fffe 100%); min-height:100dvh; color:#0b4e49; }
+    .glass{ backdrop-filter: blur(14px) saturate(120%); -webkit-backdrop-filter: blur(14px) saturate(120%); background: var(--glass-bg); border: 1px solid var(--glass-stroke); box-shadow: var(--glass-shadow); border-radius: 1rem; }
+    .navbar-glass{ backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); background: rgba(255,255,255,.55) !important; border-bottom: 1px solid var(--glass-stroke); }
+    .navbar-brand{ color: var(--tosca-700); font-weight:700; }
+    .btn-tosca{ --bs-btn-bg: var(--tosca-500); --bs-btn-border-color: var(--tosca-500); --bs-btn-hover-bg: var(--tosca-600); --bs-btn-hover-border-color: var(--tosca-600); --bs-btn-active-bg: var(--tosca-700); --bs-btn-active-border-color: var(--tosca-700); --bs-btn-color:#fff; }
+    .btn-outline-tosca{ --bs-btn-color: var(--tosca-700); --bs-btn-border-color: var(--tosca-500); --bs-btn-hover-bg: var(--tosca-500); --bs-btn-hover-border-color: var(--tosca-500); --bs-btn-active-bg: var(--tosca-600); --bs-btn-active-border-color: var(--tosca-600); }
+    .table.table-striped>tbody>tr:nth-of-type(odd){ --bs-table-accent-bg: rgba(24,183,166,.05); }
+    .badge-status{ padding:.5rem .7rem; font-size:.8rem; }
+  </style>
+  <!-- enable Thymeleaf inline for conditionals in class -->
+  <meta charset="UTF-8" th:remove="tag"/>
+  <html th:remove="tag" xmlns:th="http://www.thymeleaf.org"></html>
+  <th:block th:remove="tag" th:inline="text"></th:block>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-glass sticky-top">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="/guest">My Stay</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="nav">
+      <ul class="navbar-nav ms-auto">
+        <li class="nav-item"><a class="nav-link" href="/guest">Dashboard</a></li>
+        <li class="nav-item"><a class="nav-link" href="/guest/kamar">Pilih Kamar</a></li>
+        <li class="nav-item"><a class="nav-link active" aria-current="page" href="/guest/reservasi">Reservasi Saya</a></li>
+        <li class="nav-item"><a class="nav-link" href="/logout">Keluar</a></li>
+      </ul>
+    </div>
+  </div>
+  </nav>
+
+<main class="container p-3 p-md-4" th:object="${reservation}">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 m-0 text-tosca">Detail Reservasi</h1>
+      <div class="text-muted small">Kode <span class="fw-semibold" th:text="*{code}">RSV-1</span></div>
+    </div>
+    <a class="btn btn-outline-tosca btn-sm" href="/guest/reservasi"><i class="bi bi-arrow-left"></i> Kembali</a>
+  </div>
+
+  <div class="card glass mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+        <div>
+          <div class="text-muted small">Kamar</div>
+          <div class="fs-5" th:text="${reservation.room.number + ' (' + reservation.room.type.displayName + ')'}">101 (Deluxe)</div>
+        </div>
+        <div class="text-end">
+          <div class="text-muted small">Status</div>
+          <span class="badge rounded-pill badge-status"
+                th:classappend="${reservation.status.name()=='BOOKED' ? ' text-bg-warning' : (reservation.status.name()=='CHECKED_IN' ? ' text-bg-success' : (reservation.status.name()=='CHECKED_OUT' ? ' text-bg-secondary' : ' text-bg-danger'))}"
+                th:text="*{status}">BOOKED</span>
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <div class="text-muted small">Check-in</div>
+          <div th:text="${#temporals.format(reservation.checkIn,'dd MMM yyyy')}">01 Jan 2025</div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="text-muted small">Check-out</div>
+          <div th:text="${#temporals.format(reservation.checkOut,'dd MMM yyyy')}">02 Jan 2025</div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="text-muted small">Durasi</div>
+          <div>
+            <span th:text="${T(java.time.temporal.ChronoUnit).DAYS.between(reservation.checkIn, reservation.checkOut)}">1</span> malam
+          </div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="text-muted small">Tarif / malam</div>
+          <div class="fw-semibold" th:text="${#numbers.formatDecimal(reservation.room.rate,0,'POINT',2,'COMMA')}">800.000</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-danger small" th:if="${guestError != null}" th:text="${guestError}"></div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
