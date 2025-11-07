@@ -247,6 +247,29 @@ public class PageController {
             });
     }
 
+    // ---- Guest: cancel reservation ----
+    @PostMapping("/guest/reservasi/{id}/cancel")
+    public String cancelReservation(
+        @PathVariable Long id,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.TAMU);
+        if (redirect != null) {
+            return redirect;
+        }
+        Long userId = (Long) session.getAttribute("userId");
+        try {
+            reservationService.cancel(userId, id);
+            redirectAttributes.addFlashAttribute("guestMessage", "Reservasi berhasil dibatalkan.");
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("guestError", ex.getMessage());
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("guestError", "Gagal membatalkan reservasi.");
+        }
+        return "redirect:/guest/reservasi";
+    }
+
     @GetMapping("/dashboard/admin")
     public String adminDashboard(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
         return renderDashboardForRole(session, redirectAttributes, model, UserRole.ADMIN, "dashboard_admin");
@@ -577,7 +600,16 @@ public class PageController {
         Map<String, Object> guest = new HashMap<>();
         guest.put("nama", session.getAttribute("userName"));
         model.addAttribute("guest", guest);
-        model.addAttribute("aktif", null);
+        Long userId = (Long) session.getAttribute("userId");
+        if (userId != null) {
+            reservationService.findActiveForUser(userId)
+                .ifPresentOrElse(
+                    r -> model.addAttribute("aktif", reservationService.toActiveView(r)),
+                    () -> model.addAttribute("aktif", null)
+                );
+        } else {
+            model.addAttribute("aktif", null);
+        }
         model.addAttribute("invoice", null);
         model.addAttribute("layananList", Collections.emptyList());
         model.addAttribute("keranjangLayanan", Collections.emptyList());

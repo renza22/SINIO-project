@@ -16,6 +16,7 @@
     .btn-outline-tosca{ --bs-btn-color: var(--tosca-700); --bs-btn-border-color: var(--tosca-500); --bs-btn-hover-bg: var(--tosca-500); --bs-btn-hover-border-color: var(--tosca-500); --bs-btn-active-bg: var(--tosca-600); --bs-btn-active-border-color: var(--tosca-600); }
     .table.table-striped>tbody>tr:nth-of-type(odd){ --bs-table-accent-bg: rgba(24,183,166,.05); }
     .badge-status{ padding:.5rem .7rem; font-size:.8rem; }
+    .btn-cancel{ --bs-btn-color:#b02a37; --bs-btn-border-color:#f1aeb5; --bs-btn-hover-bg:#dc3545; --bs-btn-hover-border-color:#dc3545; --bs-btn-hover-color:#fff; --bs-btn-active-bg:#b02a37; --bs-btn-active-border-color:#b02a37; }
   </style>
   <!-- enable Thymeleaf inline for conditionals in class -->
   <meta charset="UTF-8" th:remove="tag"/>
@@ -46,7 +47,7 @@
       <h1 class="h4 m-0 text-tosca">Detail Reservasi</h1>
       <div class="text-muted small">Kode <span class="fw-semibold" th:text="*{code}">RSV-1</span></div>
     </div>
-    <a class="btn btn-outline-tosca btn-sm" href="/guest/reservasi"><i class="bi bi-arrow-left"></i> Kembali</a>
+    <a class="btn btn-outline-tosca btn-sm" href="javascript:history.back()"><i class="bi bi-arrow-left"></i> Kembali</a>
   </div>
 
   <div class="card glass mb-3">
@@ -83,6 +84,13 @@
           <div class="text-muted small">Tarif / malam</div>
           <div class="fw-semibold" th:text="${#numbers.formatDecimal(reservation.room.rate,0,'POINT',2,'COMMA')}">800.000</div>
         </div>
+      </div>
+      <div class="mt-3 d-flex justify-content-end">
+        <form th:action="@{/guest/reservasi/{id}/cancel(id=${reservation.id})}" method="post" class="d-inline">
+          <button type="submit" class="btn btn-outline-danger btn-cancel rounded-pill" onclick="return confirm('Batalkan reservasi ini?');" title="Batalkan reservasi">
+            <i class="bi bi-x-circle"></i> Batalkan Reservasi
+          </button>
+        </form>
       </div>
     </div>
   </div>

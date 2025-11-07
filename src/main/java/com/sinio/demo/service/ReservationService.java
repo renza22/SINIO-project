@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import com.sinio.demo.dto.ReservationView;
+import java.util.Optional;
 
 @Service
 public class ReservationService {
@@ -79,5 +80,51 @@ public class ReservationService {
                 r.getStatus().name()
             ))
             .toList();
+    }
+
+    @Transactional
+    public void cancel(Long userId, Long reservationId) {
+        Reservation r = reservationRepository
+            .findByIdAndUser_Id(reservationId, userId)
+            .orElseThrow(() -> new IllegalArgumentException("Reservasi tidak ditemukan."));
+
+        Room room = r.getRoom();
+        reservationRepository.delete(r);
+
+        if (room != null) {
+            // simple approach: kembalikan status kamar ke AVAILABLE
+            room.setStatus(RoomStatus.AVAILABLE);
+            roomRepository.save(room);
+        }
+    }
+
+    public Optional<Reservation> findActiveForUser(Long userId) {
+        LocalDate today = LocalDate.now();
+        return findByUser(userId).stream()
+            .filter(r -> switch (r.getStatus()) {
+                case CHECKED_IN -> !r.getCheckOut().isBefore(today);
+                case BOOKED -> (!r.getCheckIn().isAfter(today) && r.getCheckOut().isAfter(today));
+                default -> false;
+            })
+            .findFirst();
+    }
+
+    public java.util.Map<String, Object> toActiveView(Reservation r) {
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("kode", r.getCode());
+        m.put("reservasiId", r.getId());
+        m.put("checkinRencana", r.getCheckIn());
+        m.put("checkoutRencana", r.getCheckOut());
+        m.put("nomorKamar", r.getRoom().getNumber());
+        m.put("namaTipe", r.getRoom().getType().getDisplayName());
+        m.put("status", r.getStatus().name());
+        String badge = switch (r.getStatus()) {
+            case BOOKED -> "warning";
+            case CHECKED_IN -> "success";
+            case CHECKED_OUT -> "secondary";
+            case CANCELED -> "danger";
+        };
+        m.put("badge", badge);
+        return m;
     }
 }
