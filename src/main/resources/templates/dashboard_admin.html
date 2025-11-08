@@ -456,9 +456,7 @@
                         th:text="${r.status}">TERKONFIRMASI</span>
                 </td>
                 <td class="text-end">
-                  <a class="btn btn-sm btn-outline-brand" th:href="@{/admin/reservasi/{id}(id=${r.reservasiId})}">
-                    Detail
-                  </a>
+                  <a class="btn btn-sm btn-outline-brand" th:href="@{/admin/reservasi/{id}(id=${r.reservasiId})}">Detail</a>
                 </td>
               </tr>
               <tr th:if="${#lists.isEmpty(recentReservations)}">

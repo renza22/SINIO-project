@@ -62,51 +62,44 @@
       </div>
       <div class="offcanvas-body">
         <ul class="navbar-nav ms-auto gap-2">
-          <li class="nav-item"><a class="nav-link" href="/fo">Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link" href="/fo/checkin">Check-in</a></li>
-          <li class="nav-item"><a class="nav-link" href="/fo/checkout">Check-out</a></li>
-          <li class="nav-item"><a class="nav-link" href="/fo/pesanan-layanan">Pesanan Layanan</a></li>
+          <li class="nav-item"><a class="nav-link active" aria-current="page" href="/dashboard/karyawan">Dashboard</a></li>
           <li class="nav-item"><a class="nav-link" href="/logout">Keluar</a></li>
         </ul>
       </div>
     </div>
   </div>
-</nav>
+  </nav>
 
-<main class="container-fluid p-3 p-md-4">
-  <!-- Quick actions -->
-  <div class="d-flex flex-wrap gap-2 mb-3">
-    <a href="/fo/reservasi/new" class="btn btn-tosca"><i class="bi bi-plus-circle"></i> Buat Reservasi</a>
-    <a href="/fo/checkin" class="btn btn-outline-tosca"><i class="bi bi-box-arrow-in-right"></i> Proses Check-in</a>
-    <a href="/fo/checkout" class="btn btn-outline-tosca"><i class="bi bi-box-arrow-right"></i> Proses Check-out</a>
-    <a href="/fo/cari-tamu" class="btn btn-outline-tosca"><i class="bi bi-search"></i> Cari Tamu</a>
-  </div>
-
+<main class="container p-3 p-md-4">
   <div class="row g-3">
-    <!-- Check-in hari ini -->
     <div class="col-12 col-lg-6">
       <div class="card glass h-100">
-        <div class="card-header d-flex align-items-center gap-2">
-          <span class="badge badge-tosca">Hari Ini</span>
-          <strong class="text-tosca">Check-in</strong>
-        </div>
-        <div class="card-body p-0">
+        <div class="card-header"><strong class="text-tosca">Check-in Hari Ini</strong></div>
+        <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-sm table-hover table-striped align-middle mb-0 table-kaca">
+            <table class="table table-sm table-hover table-striped align-middle table-kaca mb-0">
               <thead>
-                <tr><th>Kode</th><th>Tamu</th><th>Kamar</th><th>Aksi</th></tr>
+                <tr>
+                  <th>Kode</th><th>Tamu</th><th>Kamar</th><th>Rencana</th><th class="text-end">Aksi</th>
+                </tr>
               </thead>
               <tbody>
-                <tr th:each="c : ${checkinToday}">
-                  <td th:text="${c.kode}">RSV-0002</td>
-                  <td th:text="${c.tamuNama}">Andi Wijaya</td>
-                  <td th:text="${c.nomorKamar}">101</td>
+                <tr th:each="r : ${checkinToday}">
+                  <td class="fw-semibold" th:text="${r.kode}">RSV-001</td>
+                  <td th:text="${r.tamuNama}">Budi</td>
+                  <td th:text="${r.nomorKamar + ' (' + r.tipeKamar + ')'}">101 (Deluxe)</td>
                   <td>
-                    <a class="btn btn-sm btn-tosca" th:href="@{/fo/checkin/{id}(id=${c.reservasiId})}"><i class="bi bi-play-fill"></i> Check-in</a>
+                    <span th:text="${#temporals.format(r.checkin,'dd MMM')}">07 Nov</span>
+                    - <span th:text="${#temporals.format(r.checkout,'dd MMM')}">09 Nov</span>
+                  </td>
+                  <td class="text-end">
+                    <form th:action="@{/karyawan/reservasi/{id}/checkin(id=${r.reservasiId})}" method="post" class="d-inline">
+                      <button type="submit" class="btn btn-sm btn-success">Check-in</button>
+                    </form>
                   </td>
                 </tr>
                 <tr th:if="${#lists.isEmpty(checkinToday)}">
-                  <td colspan="4" class="text-center text-muted py-3">Tidak ada jadwal check-in</td>
+                  <td colspan="5" class="text-center text-muted">Tidak ada tamu check-in hari ini.</td>
                 </tr>
               </tbody>
             </table>
@@ -114,31 +107,34 @@
         </div>
       </div>
     </div>
-
-    <!-- Check-out hari ini -->
     <div class="col-12 col-lg-6">
       <div class="card glass h-100">
-        <div class="card-header d-flex align-items-center gap-2">
-          <span class="badge badge-tosca">Hari Ini</span>
-          <strong class="text-tosca">Check-out</strong>
-        </div>
-        <div class="card-body p-0">
+        <div class="card-header"><strong class="text-tosca">Check-out Hari Ini</strong></div>
+        <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-sm table-hover table-striped align-middle mb-0 table-kaca">
+            <table class="table table-sm table-hover table-striped align-middle table-kaca mb-0">
               <thead>
-                <tr><th>Kode</th><th>Tamu</th><th>Kamar</th><th>Aksi</th></tr>
+                <tr>
+                  <th>Kode</th><th>Tamu</th><th>Kamar</th><th>Rencana</th><th class="text-end">Aksi</th>
+                </tr>
               </thead>
               <tbody>
-                <tr th:each="o : ${checkoutToday}">
-                  <td th:text="${o.kode}">RSV-0001</td>
-                  <td th:text="${o.tamuNama}">Budi Santoso</td>
-                  <td th:text="${o.nomorKamar}">102</td>
+                <tr th:each="r : ${checkoutToday}">
+                  <td class="fw-semibold" th:text="${r.kode}">RSV-001</td>
+                  <td th:text="${r.tamuNama}">Budi</td>
+                  <td th:text="${r.nomorKamar + ' (' + r.tipeKamar + ')'}">101 (Deluxe)</td>
                   <td>
-                    <a class="btn btn-sm btn-outline-danger" th:href="@{/fo/checkout/{id}(id=${o.reservasiId})}"><i class="bi bi-stop-fill"></i> Check-out</a>
+                    <span th:text="${#temporals.format(r.checkin,'dd MMM')}">07 Nov</span>
+                    - <span th:text="${#temporals.format(r.checkout,'dd MMM')}">09 Nov</span>
+                  </td>
+                  <td class="text-end">
+                    <form th:action="@{/karyawan/reservasi/{id}/checkout(id=${r.reservasiId})}" method="post" class="d-inline">
+                      <button type="submit" class="btn btn-sm btn-warning">Check-out</button>
+                    </form>
                   </td>
                 </tr>
                 <tr th:if="${#lists.isEmpty(checkoutToday)}">
-                  <td colspan="4" class="text-center text-muted py-3">Tidak ada jadwal check-out</td>
+                  <td colspan="5" class="text-center text-muted">Tidak ada tamu check-out hari ini.</td>
                 </tr>
               </tbody>
             </table>
@@ -146,34 +142,36 @@
         </div>
       </div>
     </div>
-
-    <!-- Pesanan layanan yang diproses -->
+  </div>
+  <div class="row g-3 mt-1">
     <div class="col-12">
-      <div class="card glass">
-        <div class="card-header d-flex align-items-center gap-2">
-          <span class="badge badge-tosca">Aktif</span>
-          <strong class="text-tosca">Pesanan Layanan (Diproses)</strong>
-        </div>
-        <div class="card-body p-0">
+      <div class="card glass h-100">
+        <div class="card-header"><strong class="text-tosca">Sedang Menginap</strong></div>
+        <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-sm table-hover table-striped align-middle mb-0 table-kaca">
+            <table class="table table-sm table-hover table-striped align-middle table-kaca mb-0">
               <thead>
-                <tr><th>ID</th><th>Kode Reservasi</th><th>Tanggal</th><th>Status</th><th>Catatan</th><th></th></tr>
+                <tr>
+                  <th>Kode</th><th>Tamu</th><th>Kamar</th><th>Rencana</th><th class="text-end">Aksi</th>
+                </tr>
               </thead>
               <tbody>
-                <tr th:each="p : ${ordersInProgress}">
-                  <td th:text="${p.pesananId}">3</td>
-                  <td th:text="${p.kodeReservasi}">RSV-0003</td>
-                  <td th:text="${#temporals.format(p.tanggal,'dd MMM yyyy HH:mm')}">21 Sep 2025 21:58</td>
-                  <td><span class="badge rounded-pill text-bg-warning" th:text="${p.status}">DIPROSES</span></td>
-                  <td th:text="${p.catatan}">Spa booking</td>
+                <tr th:each="r : ${inhouse}">
+                  <td class="fw-semibold" th:text="${r.kode}">RSV-001</td>
+                  <td th:text="${r.tamuNama}">Budi</td>
+                  <td th:text="${r.nomorKamar + ' (' + r.tipeKamar + ')'}">101 (Deluxe)</td>
+                  <td>
+                    <span th:text="${#temporals.format(r.checkin,'dd MMM')}">07 Nov</span>
+                    - <span th:text="${#temporals.format(r.checkout,'dd MMM')}">09 Nov</span>
+                  </td>
                   <td class="text-end">
-                    <a class="btn btn-sm btn-outline-tosca" th:href="@{/fo/pesanan-layanan/{id}(id=${p.pesananId})}">Detail</a>
-                    <a class="btn btn-sm btn-success" th:href="@{/fo/pesanan-layanan/{id}/selesai(id=${p.pesananId})}">Selesai</a>
+                    <form th:action="@{/karyawan/reservasi/{id}/checkout(id=${r.reservasiId})}" method="post" class="d-inline">
+                      <button type="submit" class="btn btn-sm btn-warning">Check-out Sekarang</button>
+                    </form>
                   </td>
                 </tr>
-                <tr th:if="${#lists.isEmpty(ordersInProgress)}">
-                  <td colspan="6" class="text-center text-muted py-3">Tidak ada pesanan layanan aktif</td>
+                <tr th:if="${#lists.isEmpty(inhouse)}">
+                  <td colspan="5" class="text-center text-muted">Tidak ada tamu yang sedang menginap.</td>
                 </tr>
               </tbody>
             </table>

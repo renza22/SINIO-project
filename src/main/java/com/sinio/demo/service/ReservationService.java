@@ -5,6 +5,7 @@ import com.sinio.demo.model.*;
 import com.sinio.demo.repository.ReservationRepository;
 import com.sinio.demo.repository.RoomRepository;
 import com.sinio.demo.repository.UserRepository;
+import com.sinio.demo.repository.StayRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +14,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import com.sinio.demo.dto.ReservationView;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class ReservationService {
@@ -20,11 +23,13 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final RoomRepository roomRepository;
     private final UserRepository userRepository;
+    private final StayRepository stayRepository;
 
-    public ReservationService(ReservationRepository reservationRepository, RoomRepository roomRepository, UserRepository userRepository) {
+    public ReservationService(ReservationRepository reservationRepository, RoomRepository roomRepository, UserRepository userRepository, StayRepository stayRepository) {
         this.reservationRepository = reservationRepository;
         this.roomRepository = roomRepository;
         this.userRepository = userRepository;
+        this.stayRepository = stayRepository;
     }
 
     @Transactional
@@ -87,7 +92,10 @@ public class ReservationService {
         Reservation r = reservationRepository
             .findByIdAndUser_Id(reservationId, userId)
             .orElseThrow(() -> new IllegalArgumentException("Reservasi tidak ditemukan."));
-
+        // Prevent cancel if already checked-in (active stay exists)
+        stayRepository.findByReservation_IdAndCheckoutAtIsNull(r.getId()).ifPresent(s -> {
+            throw new IllegalStateException("Reservasi sudah check-in dan tidak dapat dibatalkan.");
+        });
         Room room = r.getRoom();
         reservationRepository.delete(r);
 
@@ -102,7 +110,7 @@ public class ReservationService {
         LocalDate today = LocalDate.now();
         return findByUser(userId).stream()
             .filter(r -> switch (r.getStatus()) {
-                case CHECKED_IN -> !r.getCheckOut().isBefore(today);
+                case CHECKED_IN, CONFIRMED -> !r.getCheckOut().isBefore(today);
                 case BOOKED -> (!r.getCheckIn().isAfter(today) && r.getCheckOut().isAfter(today));
                 default -> false;
             })
@@ -120,11 +128,169 @@ public class ReservationService {
         m.put("status", r.getStatus().name());
         String badge = switch (r.getStatus()) {
             case BOOKED -> "warning";
-            case CHECKED_IN -> "success";
+            case CHECKED_IN, CONFIRMED -> "success";
             case CHECKED_OUT -> "secondary";
             case CANCELED -> "danger";
         };
         m.put("badge", badge);
         return m;
+    }
+
+    // ---- Occupancy helpers for Admin KPI ----
+    public Set<Long> getOccupiedRoomIdsToday() {
+        return stayRepository.findByCheckoutAtIsNull()
+            .stream()
+            .map(s -> s.getRoom().getId())
+            .collect(Collectors.toSet());
+    }
+
+    public long countOccupiedRoomsToday() {
+        return getOccupiedRoomIdsToday().size();
+    }
+
+    public List<Reservation> findRecent() {
+        return reservationRepository.findTop10ByOrderByCreatedAtDesc();
+    }
+
+    public List<java.util.Map<String, Object>> recentReservationsView() {
+        DateTimeFormatter shortFmt = DateTimeFormatter.ofPattern("dd MMM");
+        return findRecent().stream().map(r -> {
+            java.util.Map<String, Object> m = new java.util.HashMap<>();
+            m.put("reservasiId", r.getId());
+            m.put("kode", r.getCode());
+            m.put("tamuNama", r.getUser().getFullName());
+            m.put("tipeKamar", r.getRoom().getType().getDisplayName());
+            m.put("checkinRencana", r.getCheckIn());
+            m.put("checkoutRencana", r.getCheckOut());
+            m.put("status", r.getStatus().name());
+        String badge = switch (r.getStatus()) {
+            case BOOKED -> "warning";
+            case CHECKED_IN, CONFIRMED -> "success";
+            case CHECKED_OUT -> "secondary";
+            case CANCELED -> "danger";
+        };
+            m.put("badge", badge);
+            return m;
+        }).toList();
+    }
+
+    // ---- Front Office views ----
+    public List<java.util.Map<String, Object>> arrivalsTodayView() {
+        LocalDate today = LocalDate.now();
+        return reservationRepository.findByCheckInEquals(today).stream()
+            .filter(r -> r.getStatus() == ReservationStatus.BOOKED || r.getStatus() == ReservationStatus.CONFIRMED)
+            .map(this::toFoRow)
+            .toList();
+    }
+
+    public List<java.util.Map<String, Object>> departuresTodayView() {
+        LocalDate today = LocalDate.now();
+        return reservationRepository.findByCheckOutEquals(today).stream()
+            .filter(r -> stayRepository.findByReservation_IdAndCheckoutAtIsNull(r.getId()).isPresent())
+            .map(this::toFoRow)
+            .toList();
+    }
+
+    private java.util.Map<String, Object> toFoRow(Reservation r) {
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("reservasiId", r.getId());
+        m.put("kode", r.getCode());
+        m.put("tamuNama", r.getUser().getFullName());
+        m.put("nomorKamar", r.getRoom().getNumber());
+        m.put("tipeKamar", r.getRoom().getType().getDisplayName());
+        m.put("checkin", r.getCheckIn());
+        m.put("checkout", r.getCheckOut());
+        m.put("status", r.getStatus().name());
+        return m;
+    }
+
+    // All active in-house stays (for early check-out capability)
+    public List<java.util.Map<String, Object>> inhouseView() {
+        return stayRepository.findByCheckoutAtIsNull()
+            .stream()
+            .map(stay -> {
+                Reservation r = stay.getReservation();
+                java.util.Map<String, Object> m = new java.util.HashMap<>();
+                m.put("reservasiId", r.getId());
+                m.put("kode", r.getCode());
+                m.put("tamuNama", r.getUser().getFullName());
+                m.put("nomorKamar", stay.getRoom().getNumber());
+                m.put("tipeKamar", stay.getRoom().getType().getDisplayName());
+                m.put("checkin", r.getCheckIn());
+                m.put("checkout", r.getCheckOut()); // planned checkout
+                m.put("status", r.getStatus().name());
+                return m;
+            })
+            .toList();
+    }
+
+    
+
+    // ---- Guest-driven transitions with ownership checks ----
+    @Transactional
+    public void guestCheckIn(Long userId, Long reservationId) {
+        throw new IllegalStateException("Check-in hanya dapat dilakukan oleh Karyawan di front desk.");
+    }
+
+    @Transactional
+    public void guestCheckOut(Long userId, Long reservationId) {
+        throw new IllegalStateException("Check-out hanya dapat dilakukan oleh Karyawan di front desk.");
+    }
+
+    // ---- Staff (Front Desk) operations ----
+    @Transactional
+    public void staffCheckIn(Long reservationId) {
+        Reservation r = reservationRepository.findById(reservationId)
+            .orElseThrow(() -> new IllegalArgumentException("Reservasi tidak ditemukan."));
+        LocalDate today = LocalDate.now();
+        if (r.getStatus() != ReservationStatus.BOOKED) {
+            // allow reconfirm or already confirmed?
+            if (r.getStatus() != ReservationStatus.CONFIRMED) {
+                throw new IllegalStateException("Reservasi tidak dalam status BOOKED/CONFIRMED.");
+            }
+        }
+        if (r.getCheckIn().isAfter(today)) {
+            throw new IllegalStateException("Belum masuk tanggal check-in.");
+        }
+        // ensure stay not exists
+        stayRepository.findByReservation_IdAndCheckoutAtIsNull(r.getId()).ifPresent(s -> {
+            throw new IllegalStateException("Tamu sudah check-in.");
+        });
+
+        r.setStatus(ReservationStatus.CONFIRMED);
+        reservationRepository.save(r);
+
+        Stay stay = new Stay();
+        stay.setUser(r.getUser());
+        stay.setReservation(r);
+        stay.setRoom(r.getRoom());
+        stay.setCheckinAt(java.time.LocalDateTime.now());
+        stayRepository.save(stay);
+
+        Room room = r.getRoom();
+        if (room != null) {
+            room.setStatus(RoomStatus.OCCUPIED);
+            roomRepository.save(room);
+        }
+    }
+
+    @Transactional
+    public void staffCheckOut(Long reservationId) {
+        Reservation r = reservationRepository.findById(reservationId)
+            .orElseThrow(() -> new IllegalArgumentException("Reservasi tidak ditemukan."));
+        Stay stay = stayRepository.findByReservation_IdAndCheckoutAtIsNull(r.getId())
+            .orElseThrow(() -> new IllegalStateException("Belum ada data menginap aktif."));
+
+        stay.setCheckoutAt(java.time.LocalDateTime.now());
+        stayRepository.save(stay);
+
+        r.setStatus(ReservationStatus.CHECKED_OUT);
+        reservationRepository.save(r);
+
+        Room room = r.getRoom();
+        if (room != null) {
+            room.setStatus(RoomStatus.CLEANING);
+            roomRepository.save(room);
+        }
     }
 }

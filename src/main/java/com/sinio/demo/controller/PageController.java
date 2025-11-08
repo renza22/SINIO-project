@@ -8,6 +8,8 @@ import com.sinio.demo.dto.ReservationRequest;
 import com.sinio.demo.model.Room;
 import com.sinio.demo.model.User;
 import com.sinio.demo.model.UserRole;
+import com.sinio.demo.model.RoomStatus;
+import com.sinio.demo.model.RoomType;
 import com.sinio.demo.service.RoomService;
 import com.sinio.demo.service.ReservationService;
 import com.sinio.demo.service.UserService;
@@ -617,20 +619,81 @@ public class PageController {
     }
 
     private void populateAdminModel(Model model) {
+        List<Room> rooms = roomService.findAllSorted();
+
+        long total = rooms.size();
+        long maintenance = rooms.stream().filter(r -> r.getStatus() == RoomStatus.MAINTENANCE).count();
+
+        java.util.Set<Long> occupiedIds = reservationService.getOccupiedRoomIdsToday();
+        long occupied = occupiedIds.size();
+        long available = Math.max(0, total - occupied - maintenance);
+
         Map<String, Object> kpi = new HashMap<>();
-        kpi.put("availableRooms", 0);
-        kpi.put("occupiedRooms", 0);
+        kpi.put("availableRooms", available);
+        kpi.put("occupiedRooms", occupied);
         kpi.put("todayRevenue", BigDecimal.ZERO);
         kpi.put("pendingInvoices", 0);
         model.addAttribute("kpi", kpi);
-        model.addAttribute("recentReservations", Collections.emptyList());
+
+        // Build roomByType summary expected by template
+        List<Map<String, Object>> byType = RoomType.defaultOrder().stream().map(type -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("namaTipe", type.getDisplayName());
+            long totalType = rooms.stream().filter(r -> r.getType() == type).count();
+            long perawatan = rooms.stream().filter(r -> r.getType() == type && r.getStatus() == RoomStatus.MAINTENANCE).count();
+            long terisi = rooms.stream().filter(r -> r.getType() == type && occupiedIds.contains(r.getId())).count();
+            long tersedia = Math.max(0, totalType - terisi - perawatan);
+            m.put("total", totalType);
+            m.put("terisi", terisi);
+            m.put("tersedia", tersedia);
+            m.put("perawatan", perawatan);
+            return m;
+        }).toList();
+        model.addAttribute("roomByType", byType);
+
+        model.addAttribute("recentReservations", reservationService.recentReservationsView());
         model.addAttribute("recentPayments", Collections.emptyList());
-        model.addAttribute("roomByType", Collections.emptyList());
+    }
+
+    // ---- Staff (Karyawan): reservation transitions ----
+    @PostMapping("/karyawan/reservasi/{id}/checkin")
+    public String staffCheckIn(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.KARYAWAN);
+        if (redirect != null) {
+            return redirect;
+        }
+        try {
+            reservationService.staffCheckIn(id);
+            redirectAttributes.addFlashAttribute("employeeSuccess", "Check-in berhasil.");
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            redirectAttributes.addFlashAttribute("employeeError", ex.getMessage());
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("employeeError", "Gagal memproses check-in.");
+        }
+        return "redirect:/dashboard/karyawan";
+    }
+
+    @PostMapping("/karyawan/reservasi/{id}/checkout")
+    public String staffCheckOut(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.KARYAWAN);
+        if (redirect != null) {
+            return redirect;
+        }
+        try {
+            reservationService.staffCheckOut(id);
+            redirectAttributes.addFlashAttribute("employeeSuccess", "Check-out berhasil.");
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            redirectAttributes.addFlashAttribute("employeeError", ex.getMessage());
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("employeeError", "Gagal memproses check-out.");
+        }
+        return "redirect:/dashboard/karyawan";
     }
 
     private void populateEmployeeModel(Model model) {
-        model.addAttribute("checkinToday", Collections.emptyList());
-        model.addAttribute("checkoutToday", Collections.emptyList());
+        model.addAttribute("checkinToday", reservationService.arrivalsTodayView());
+        model.addAttribute("checkoutToday", reservationService.departuresTodayView());
+        model.addAttribute("inhouse", reservationService.inhouseView());
         model.addAttribute("ordersInProgress", Collections.emptyList());
     }
 

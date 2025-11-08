@@ -125,7 +125,7 @@
                 <div class="mt-2">Kamar: <span class="fw-semibold" th:text="${aktif.nomorKamar}">301</span> (<span th:text="${aktif.namaTipe}">Suite</span>)</div>
                 <span class="badge rounded-pill mt-2" th:classappend="${' text-bg-' + aktif.badge}" th:text="${aktif.status}">CHECK_IN</span>
               </div>
-              <div class="text-end">
+              <div class="text-end d-flex flex-wrap gap-2 justify-content-end">
                 <a class="btn btn-sm btn-outline-tosca" th:href="@{/guest/reservasi/{id}(id=${aktif.reservasiId})}">Detail</a>
               </div>
             </div>
