@@ -1,6 +1,7 @@
 package com.sinio.demo.dto;
 
 import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.format.annotation.DateTimeFormat;
 
@@ -10,11 +11,13 @@ public class ReservationRequest {
     @NotNull
     private Long roomId;
 
-    @NotNull
+    @NotNull(message = "Tanggal check-in wajib diisi.")
+    @FutureOrPresent(message = "Tanggal check-in tidak boleh sebelum hari ini.")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate checkIn;
 
-    @NotNull
+    @NotNull(message = "Tanggal check-out wajib diisi.")
+    @Future(message = "Tanggal check-out harus di masa depan.")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate checkOut;
 
@@ -42,4 +45,3 @@ public class ReservationRequest {
         this.checkOut = checkOut;
     }
 }
-

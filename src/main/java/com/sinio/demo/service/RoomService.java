@@ -25,7 +25,6 @@ public class RoomService {
         DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
             .withLocale(new Locale.Builder().setLanguage("id").setRegion("ID").build());
 
-
     private final RoomRepository roomRepository;
 
     public RoomService(RoomRepository roomRepository) {
@@ -76,7 +75,7 @@ public class RoomService {
     }
 
     private String buildActivityTitle(Room room) {
-        return "Kamar " + room.getNumber() + " • " + room.getType().getDisplayName();
+        return "Kamar " + room.getNumber() + " — " + room.getType().getDisplayName();
     }
 
     private String buildActivityDescription(Room room) {
@@ -162,7 +161,7 @@ public class RoomService {
     public List<String> getDefaultAmenities(RoomType type) {
         // Basic amenities for all rooms
         List<String> base = List.of(
-            "Wi‑Fi berkecepatan tinggi",
+            "Wi-Fi berkecepatan tinggi",
             "TV LED kabel",
             "AC",
             "Air minum & teh/kopi",
