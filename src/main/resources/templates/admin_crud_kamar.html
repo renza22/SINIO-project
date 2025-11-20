@@ -457,7 +457,9 @@
                                    data-status=${room.status},
                                    data-rate=${room.rate},
                                    data-note=${room.note},
-                                   data-cleaned=${room.lastCleanedAt != null ? #temporals.format(room.lastCleanedAt, 'yyyy-MM-dd''T''HH:mm') : ''}">
+                                   data-cleaned=${room.lastCleanedAt != null ? #temporals.format(room.lastCleanedAt, 'yyyy-MM-dd''T''HH:mm') : ''},
+                                   data-amenities=${room.amenities != null ? #strings.listJoin(room.amenities.![name], '\n') : ''},
+                                   data-services=${room.serviceOptions != null ? #strings.listJoin(room.serviceOptions.![name + ' | ' + unit + ' | ' + (price != null ? price : 0)], '\n') : ''}">
                     <i class="bi bi-pencil-square"></i><span>Edit</span>
                   </button>
                   <button class="btn btn-outline-brand d-flex align-items-center gap-1"
@@ -571,6 +573,28 @@
                      th:field="*{lastCleanedAt}">
             </div>
             <div class="col-12">
+              <label class="form-label" for="createRoomAmenities">Daftar Fasilitas</label>
+              <textarea id="createRoomAmenities"
+                        class="form-control"
+                        rows="4"
+                        th:field="*{amenitiesText}"
+                        th:classappend="${#fields.hasErrors('amenitiesText')} ? ' is-invalid' : ''"
+                        placeholder="Wi-Fi berkecepatan tinggi&#10;TV Kabel HD&#10;Kopi & teh gratis"></textarea>
+              <div class="invalid-feedback" th:if="${#fields.hasErrors('amenitiesText')}" th:errors="*{amenitiesText}">Fasilitas tidak valid</div>
+              <div class="form-text">Masukkan satu fasilitas per baris agar tamu dapat melihat sesuai data di database.</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="createRoomServices">Layanan Berbayar</label>
+              <textarea id="createRoomServices"
+                        class="form-control"
+                        rows="4"
+                        th:field="*{servicesText}"
+                        th:classappend="${#fields.hasErrors('servicesText')} ? ' is-invalid' : ''"
+                        placeholder="Laundry | kg | 25000&#10;Room dining | porsi | 60000"></textarea>
+              <div class="invalid-feedback" th:if="${#fields.hasErrors('servicesText')}" th:errors="*{servicesText}">Layanan tidak valid</div>
+              <div class="form-text">Format: <code>Nama Layanan | Satuan | Harga</code>. Harga disimpan ke database kamar.</div>
+            </div>
+            <div class="col-12">
               <label class="form-label" for="createRoomNote">Catatan</label>
               <textarea id="createRoomNote"
                         class="form-control"
@@ -660,6 +684,26 @@
                      type="datetime-local"
                      class="form-control"
                      th:field="*{lastCleanedAt}">
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="editRoomAmenities">Daftar Fasilitas</label>
+              <textarea id="editRoomAmenities"
+                        class="form-control"
+                        rows="4"
+                        th:field="*{amenitiesText}"
+                        th:classappend="${#fields.hasErrors('amenitiesText')} ? ' is-invalid' : ''"></textarea>
+              <div class="invalid-feedback" th:if="${#fields.hasErrors('amenitiesText')}" th:errors="*{amenitiesText}">Fasilitas tidak valid</div>
+              <div class="form-text">Satu fasilitas per baris, sesuai yang ingin ditampilkan ke tamu.</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="editRoomServices">Layanan Berbayar</label>
+              <textarea id="editRoomServices"
+                        class="form-control"
+                        rows="4"
+                        th:field="*{servicesText}"
+                        th:classappend="${#fields.hasErrors('servicesText')} ? ' is-invalid' : ''"></textarea>
+              <div class="invalid-feedback" th:if="${#fields.hasErrors('servicesText')}" th:errors="*{servicesText}">Layanan tidak valid</div>
+              <div class="form-text">Format tetap: <code>Nama | Satuan | Harga</code>. Pisahkan antar layanan per baris.</div>
             </div>
             <div class="col-12">
               <label class="form-label" for="editRoomNote">Catatan</label>
@@ -757,20 +801,22 @@
 
   const editModalEl = document.getElementById('editRoomModal');
   const editForm = document.getElementById('editRoomForm');
-  if (editModalEl && editForm) {
-    const actionTemplate = editForm.dataset.actionTemplate;
-    editModalEl.addEventListener('show.bs.modal', event => {
-      const trigger = event.relatedTarget;
-      if (!trigger) {
-        return;
-      }
-      const id = trigger.getAttribute('data-id');
-      const number = trigger.getAttribute('data-number') ?? '';
-      const type = trigger.getAttribute('data-type') ?? '';
-      const status = trigger.getAttribute('data-status') ?? '';
-      const rate = trigger.getAttribute('data-rate') ?? '';
-      const note = trigger.getAttribute('data-note') ?? '';
-      const cleaned = trigger.getAttribute('data-cleaned') ?? '';
+      if (editModalEl && editForm) {
+        const actionTemplate = editForm.dataset.actionTemplate;
+        editModalEl.addEventListener('show.bs.modal', event => {
+          const trigger = event.relatedTarget;
+          if (!trigger) {
+            return;
+          }
+          const id = trigger.getAttribute('data-id');
+          const number = trigger.getAttribute('data-number') ?? '';
+          const type = trigger.getAttribute('data-type') ?? '';
+          const status = trigger.getAttribute('data-status') ?? '';
+          const rate = trigger.getAttribute('data-rate') ?? '';
+          const note = trigger.getAttribute('data-note') ?? '';
+          const cleaned = trigger.getAttribute('data-cleaned') ?? '';
+          const amenities = trigger.getAttribute('data-amenities') ?? '';
+          const services = trigger.getAttribute('data-services') ?? '';
 
       if (actionTemplate && id) {
         editForm.setAttribute('action', actionTemplate.replace('__ID__', id));
@@ -780,18 +826,22 @@
       const numberInput = editForm.querySelector('#editRoomNumber');
       const typeSelect = editForm.querySelector('#editRoomType');
       const statusSelect = editForm.querySelector('#editRoomStatus');
-      const rateInput = editForm.querySelector('#editRoomRate');
-      const noteInput = editForm.querySelector('#editRoomNote');
-      const cleanedInput = editForm.querySelector('#editRoomCleaned');
+          const rateInput = editForm.querySelector('#editRoomRate');
+          const noteInput = editForm.querySelector('#editRoomNote');
+          const cleanedInput = editForm.querySelector('#editRoomCleaned');
+          const amenitiesInput = editForm.querySelector('#editRoomAmenities');
+          const servicesInput = editForm.querySelector('#editRoomServices');
 
       if (numberInput && !numberInput.classList.contains('is-invalid')) numberInput.value = number;
       if (typeSelect && !typeSelect.classList.contains('is-invalid')) typeSelect.value = type;
       if (statusSelect && !statusSelect.classList.contains('is-invalid')) statusSelect.value = status;
       if (rateInput && !rateInput.classList.contains('is-invalid')) rateInput.value = rate;
-      if (noteInput && !noteInput.classList.contains('is-invalid')) noteInput.value = note ?? '';
-      if (cleanedInput && !cleanedInput.classList.contains('is-invalid')) cleanedInput.value = cleaned;
-    });
-  }
+          if (noteInput && !noteInput.classList.contains('is-invalid')) noteInput.value = note ?? '';
+          if (cleanedInput && !cleanedInput.classList.contains('is-invalid')) cleanedInput.value = cleaned;
+          if (amenitiesInput && !amenitiesInput.classList.contains('is-invalid')) amenitiesInput.value = amenities;
+          if (servicesInput && !servicesInput.classList.contains('is-invalid')) servicesInput.value = services;
+        });
+      }
 
   const deleteModalEl = document.getElementById('deleteRoomModal');
   const deleteForm = document.getElementById('deleteRoomForm');

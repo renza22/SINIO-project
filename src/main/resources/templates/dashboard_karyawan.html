@@ -93,7 +93,7 @@
             <table class="table table-sm table-hover table-striped align-middle table-kaca mb-0">
               <thead>
                 <tr>
-                  <th>Kode</th><th>Tamu</th><th>Kamar</th><th>Rencana</th><th class="text-end">Aksi</th>
+                  <th>Kode</th><th>Tamu</th><th>Kamar</th><th>Rencana</th><th>Layanan</th><th class="text-end">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -105,14 +105,15 @@
                     <span th:text="${#temporals.format(r.checkin,'dd MMM')}">07 Nov</span>
                     - <span th:text="${#temporals.format(r.checkout,'dd MMM')}">09 Nov</span>
                   </td>
+                  <td><span class="small text-muted" th:text="${r.servicesSummary}">-</span></td>
                   <td class="text-end">
                     <form th:action="@{/karyawan/reservasi/{id}/checkin(id=${r.reservasiId})}" method="post" class="d-inline">
-                      <button type="submit" class="btn btn-sm btn-success">Check-in</button>
+                      <button type="submit" class="btn btn-sm btn-success">Approve Check-in</button>
                     </form>
                   </td>
                 </tr>
                 <tr th:if="${#lists.isEmpty(checkinToday)}">
-                  <td colspan="5" class="text-center text-muted">Tidak ada tamu check-in hari ini.</td>
+                  <td colspan="6" class="text-center text-muted">Tidak ada tamu check-in hari ini.</td>
                 </tr>
               </tbody>
             </table>
@@ -128,7 +129,7 @@
             <table class="table table-sm table-hover table-striped align-middle table-kaca mb-0">
               <thead>
                 <tr>
-                  <th>Kode</th><th>Tamu</th><th>Kamar</th><th>Rencana</th><th class="text-end">Aksi</th>
+                  <th>Kode</th><th>Tamu</th><th>Kamar</th><th>Rencana</th><th>Layanan</th><th class="text-end">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -140,6 +141,7 @@
                     <span th:text="${#temporals.format(r.checkin,'dd MMM')}">07 Nov</span>
                     - <span th:text="${#temporals.format(r.checkout,'dd MMM')}">09 Nov</span>
                   </td>
+                  <td><span class="small text-muted" th:text="${r.servicesSummary}">-</span></td>
                   <td class="text-end">
                     <form th:action="@{/karyawan/reservasi/{id}/checkout(id=${r.reservasiId})}" method="post" class="d-inline">
                       <button type="submit" class="btn btn-sm btn-warning">Check-out</button>
@@ -147,7 +149,7 @@
                   </td>
                 </tr>
                 <tr th:if="${#lists.isEmpty(checkoutToday)}">
-                  <td colspan="5" class="text-center text-muted">Tidak ada tamu check-out hari ini.</td>
+                  <td colspan="6" class="text-center text-muted">Tidak ada tamu check-out hari ini.</td>
                 </tr>
               </tbody>
             </table>
@@ -165,7 +167,7 @@
             <table class="table table-sm table-hover table-striped align-middle table-kaca mb-0">
               <thead>
                 <tr>
-                  <th>Kode</th><th>Tamu</th><th>Kamar</th><th>Rencana</th><th class="text-end">Aksi</th>
+                  <th>Kode</th><th>Tamu</th><th>Kamar</th><th>Rencana</th><th>Layanan</th><th class="text-end">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -177,6 +179,7 @@
                     <span th:text="${#temporals.format(r.checkin,'dd MMM')}">07 Nov</span>
                     - <span th:text="${#temporals.format(r.checkout,'dd MMM')}">09 Nov</span>
                   </td>
+                  <td><span class="small text-muted" th:text="${r.servicesSummary}">-</span></td>
                   <td class="text-end">
                     <form th:action="@{/karyawan/reservasi/{id}/checkout(id=${r.reservasiId})}" method="post" class="d-inline">
                       <button type="submit" class="btn btn-sm btn-warning">Check-out Sekarang</button>
@@ -184,7 +187,7 @@
                   </td>
                 </tr>
                 <tr th:if="${#lists.isEmpty(inhouse)}">
-                  <td colspan="5" class="text-center text-muted">Tidak ada tamu yang sedang menginap.</td>
+                  <td colspan="6" class="text-center text-muted">Tidak ada tamu yang sedang menginap.</td>
                 </tr>
               </tbody>
             </table>

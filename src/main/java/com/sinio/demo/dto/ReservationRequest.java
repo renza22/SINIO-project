@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotNull;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ReservationRequest {
     @NotNull
@@ -20,6 +22,8 @@ public class ReservationRequest {
     @Future(message = "Tanggal check-out harus di masa depan.")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate checkOut;
+
+    private List<Long> requestedServiceIds = new ArrayList<>();
 
     public Long getRoomId() {
         return roomId;
@@ -43,5 +47,13 @@ public class ReservationRequest {
 
     public void setCheckOut(LocalDate checkOut) {
         this.checkOut = checkOut;
+    }
+
+    public List<Long> getRequestedServiceIds() {
+        return requestedServiceIds;
+    }
+
+    public void setRequestedServiceIds(List<Long> requestedServiceIds) {
+        this.requestedServiceIds = requestedServiceIds != null ? requestedServiceIds : new ArrayList<>();
     }
 }

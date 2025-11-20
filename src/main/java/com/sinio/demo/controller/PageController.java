@@ -169,8 +169,8 @@ public class PageController {
             .map(room -> {
                 populateCommonModel(session, model);
                 model.addAttribute("room", room);
-                model.addAttribute("amenities", roomService.getDefaultAmenities(room.getType()));
-                model.addAttribute("services", roomService.getDefaultRoomServices());
+                model.addAttribute("amenities", roomService.resolveAmenities(room));
+                model.addAttribute("services", roomService.resolveServiceOptions(room));
                 return "guest_kamar_detail";
             })
             .orElseGet(() -> {

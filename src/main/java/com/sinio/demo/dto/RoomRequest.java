@@ -35,6 +35,12 @@ public class RoomRequest {
 
     private LocalDateTime lastCleanedAt;
 
+    @Size(max = 2000, message = "Daftar fasilitas maksimal 2000 karakter.")
+    private String amenitiesText;
+
+    @Size(max = 4000, message = "Daftar layanan maksimal 4000 karakter.")
+    private String servicesText;
+
     public Long getId() {
         return id;
     }
@@ -89,5 +95,21 @@ public class RoomRequest {
 
     public void setLastCleanedAt(LocalDateTime lastCleanedAt) {
         this.lastCleanedAt = lastCleanedAt;
+    }
+
+    public String getAmenitiesText() {
+        return amenitiesText;
+    }
+
+    public void setAmenitiesText(String amenitiesText) {
+        this.amenitiesText = amenitiesText;
+    }
+
+    public String getServicesText() {
+        return servicesText;
+    }
+
+    public void setServicesText(String servicesText) {
+        this.servicesText = servicesText;
     }
 }

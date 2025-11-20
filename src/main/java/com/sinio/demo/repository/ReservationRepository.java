@@ -20,4 +20,11 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     java.util.List<com.sinio.demo.model.Reservation> findByCheckInEquals(java.time.LocalDate date);
     java.util.List<com.sinio.demo.model.Reservation> findByCheckOutEquals(java.time.LocalDate date);
+    java.util.List<com.sinio.demo.model.Reservation> findByCheckInBetween(java.time.LocalDate start, java.time.LocalDate end);
+    java.util.List<com.sinio.demo.model.Reservation> findByCheckOutBetween(java.time.LocalDate start, java.time.LocalDate end);
+    java.util.List<com.sinio.demo.model.Reservation> findTop10ByStatusInAndCheckInGreaterThanEqualOrderByCheckInAsc(
+        java.util.List<com.sinio.demo.model.ReservationStatus> statuses,
+        java.time.LocalDate start
+    );
+    java.util.List<com.sinio.demo.model.Reservation> findTop10ByCheckOutGreaterThanEqualOrderByCheckOutAsc(java.time.LocalDate start);
 }

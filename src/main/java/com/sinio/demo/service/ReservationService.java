@@ -1,6 +1,7 @@
 package com.sinio.demo.service;
 
 import com.sinio.demo.dto.ReservationRequest;
+import com.sinio.demo.dto.ReservationView;
 import com.sinio.demo.model.*;
 import com.sinio.demo.repository.ReservationRepository;
 import com.sinio.demo.repository.RoomRepository;
@@ -11,8 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
-import com.sinio.demo.dto.ReservationView;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -55,6 +59,7 @@ public class ReservationService {
         reservation.setCheckIn(request.getCheckIn());
         reservation.setCheckOut(request.getCheckOut());
         reservation.setStatus(ReservationStatus.BOOKED);
+        reservation.setRequestedServices(buildSelectedServices(reservation, room, request.getRequestedServiceIds()));
         Reservation saved = reservationRepository.save(reservation);
         // Set final human-friendly code based on ID
         saved.setCode("RSV-" + saved.getId());
@@ -163,6 +168,7 @@ public class ReservationService {
             m.put("checkinRencana", r.getCheckIn());
             m.put("checkoutRencana", r.getCheckOut());
             m.put("status", r.getStatus().name());
+            m.put("servicesSummary", formatServicesSummary(r.getRequestedServices()));
         String badge = switch (r.getStatus()) {
             case BOOKED -> "warning";
             case CHECKED_IN, CONFIRMED -> "success";
@@ -177,16 +183,20 @@ public class ReservationService {
     // ---- Front Office views ----
     public List<java.util.Map<String, Object>> arrivalsTodayView() {
         LocalDate today = LocalDate.now();
-        return reservationRepository.findByCheckInEquals(today).stream()
-            .filter(r -> r.getStatus() == ReservationStatus.BOOKED || r.getStatus() == ReservationStatus.CONFIRMED)
+        List<ReservationStatus> statuses = List.of(ReservationStatus.BOOKED, ReservationStatus.CONFIRMED);
+        return reservationRepository
+            .findTop10ByStatusInAndCheckInGreaterThanEqualOrderByCheckInAsc(statuses, today)
+            .stream()
+            .filter(r -> stayRepository.findByReservation_IdAndCheckoutAtIsNull(r.getId()).isEmpty())
             .map(this::toFoRow)
             .toList();
     }
 
     public List<java.util.Map<String, Object>> departuresTodayView() {
         LocalDate today = LocalDate.now();
-        return reservationRepository.findByCheckOutEquals(today).stream()
-            .filter(r -> stayRepository.findByReservation_IdAndCheckoutAtIsNull(r.getId()).isPresent())
+        return reservationRepository.findTop10ByCheckOutGreaterThanEqualOrderByCheckOutAsc(today).stream()
+            .filter(r -> stayRepository.findByReservation_IdAndCheckoutAtIsNull(r.getId()).isPresent()
+                && !r.getCheckOut().isAfter(today))
             .map(this::toFoRow)
             .toList();
     }
@@ -201,6 +211,7 @@ public class ReservationService {
         m.put("checkin", r.getCheckIn());
         m.put("checkout", r.getCheckOut());
         m.put("status", r.getStatus().name());
+        m.put("servicesSummary", formatServicesSummary(r.getRequestedServices()));
         return m;
     }
 
@@ -219,6 +230,7 @@ public class ReservationService {
                 m.put("checkin", r.getCheckIn());
                 m.put("checkout", r.getCheckOut()); // planned checkout
                 m.put("status", r.getStatus().name());
+                m.put("servicesSummary", formatServicesSummary(r.getRequestedServices()));
                 return m;
             })
             .toList();
@@ -242,15 +254,11 @@ public class ReservationService {
     public void staffCheckIn(Long reservationId) {
         Reservation r = reservationRepository.findById(reservationId)
             .orElseThrow(() -> new IllegalArgumentException("Reservasi tidak ditemukan."));
-        LocalDate today = LocalDate.now();
         if (r.getStatus() != ReservationStatus.BOOKED) {
             // allow reconfirm or already confirmed?
             if (r.getStatus() != ReservationStatus.CONFIRMED) {
                 throw new IllegalStateException("Reservasi tidak dalam status BOOKED/CONFIRMED.");
             }
-        }
-        if (r.getCheckIn().isAfter(today)) {
-            throw new IllegalStateException("Belum masuk tanggal check-in.");
         }
         // ensure stay not exists
         stayRepository.findByReservation_IdAndCheckoutAtIsNull(r.getId()).ifPresent(s -> {
@@ -292,5 +300,43 @@ public class ReservationService {
             room.setStatus(RoomStatus.CLEANING);
             roomRepository.save(room);
         }
+    }
+
+    private List<ReservationServiceSelection> buildSelectedServices(Reservation reservation, Room room, List<Long> requestedIds) {
+        if (room == null || requestedIds == null || requestedIds.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, RoomServiceOption> optionMap = Optional.ofNullable(room.getServiceOptions()).orElse(List.of()).stream()
+            .filter(option -> option.getId() != null)
+            .collect(Collectors.toMap(RoomServiceOption::getId, option -> option, (left, right) -> left));
+
+        LinkedHashSet<Long> uniqueIds = requestedIds.stream()
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        List<ReservationServiceSelection> selections = new ArrayList<>();
+        for (Long id : uniqueIds) {
+            RoomServiceOption option = optionMap.get(id);
+            if (option != null) {
+                ReservationServiceSelection selection = ReservationServiceSelection.of(
+                    option.getName(),
+                    option.getUnit(),
+                    option.getPrice()
+                );
+                selection.setReservation(reservation);
+                selections.add(selection);
+            }
+        }
+        return selections;
+    }
+
+    private String formatServicesSummary(List<ReservationServiceSelection> selections) {
+        if (selections == null || selections.isEmpty()) {
+            return "-";
+        }
+        return selections.stream()
+            .map(s -> s.getName())
+            .filter(Objects::nonNull)
+            .collect(Collectors.joining(", "));
     }
 }

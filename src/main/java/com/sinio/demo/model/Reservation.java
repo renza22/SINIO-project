@@ -1,8 +1,25 @@
 package com.sinio.demo.model;
 
-import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -33,6 +50,15 @@ public class Reservation {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ReservationStatus status = ReservationStatus.BOOKED;
+
+    @OneToMany(
+        mappedBy = "reservation",
+        cascade = CascadeType.ALL,
+        orphanRemoval = true,
+        fetch = FetchType.EAGER
+    )
+    @OrderBy("id ASC")
+    private List<ReservationServiceSelection> requestedServices = new ArrayList<>();
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -100,5 +126,23 @@ public class Reservation {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public List<ReservationServiceSelection> getRequestedServices() {
+        return requestedServices;
+    }
+
+    public void setRequestedServices(List<ReservationServiceSelection> requestedServices) {
+        this.requestedServices = requestedServices != null ? new ArrayList<>(requestedServices) : new ArrayList<>();
+        this.requestedServices.forEach(selection -> selection.setReservation(this));
+    }
+
+    public BigDecimal getRequestedServicesTotal() {
+        return requestedServices == null
+            ? BigDecimal.ZERO
+            : requestedServices.stream()
+                .map(ReservationServiceSelection::getUnitPrice)
+                .filter(price -> price != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }
