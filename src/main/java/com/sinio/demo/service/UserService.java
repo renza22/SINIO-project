@@ -127,6 +127,53 @@ public class UserService {
         userRepository.delete(employee);
     }
 
+    @Transactional
+    public User updateGuestProfile(Long userId, String fullName, String email) {
+        if (userId == null) {
+            throw new IllegalArgumentException("Pengguna tidak dikenal.");
+        }
+        User user = userRepository
+            .findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("Pengguna tidak ditemukan."));
+
+        String normalizedEmail = normalizeEmail(email);
+        ensureEmailAvailableForUpdate(normalizedEmail, userId);
+
+        user.setFullName(fullName == null ? null : fullName.trim());
+        user.setEmail(normalizedEmail);
+        return userRepository.save(user);
+    }
+
+    @Transactional
+    public void changeGuestPassword(Long userId, String currentPassword, String newPassword) {
+        if (userId == null) {
+            throw new IllegalArgumentException("Pengguna tidak dikenal.");
+        }
+        User user = userRepository
+            .findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("Pengguna tidak ditemukan."));
+
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new IllegalArgumentException("Password saat ini tidak sesuai.");
+        }
+
+        if (!StringUtils.hasText(newPassword)) {
+            throw new IllegalArgumentException("Password baru wajib diisi.");
+        }
+
+        String trimmed = newPassword.trim();
+        if (trimmed.length() < MIN_PASSWORD_LENGTH) {
+            throw new IllegalArgumentException("Password baru minimal " + MIN_PASSWORD_LENGTH + " karakter.");
+        }
+
+        if (passwordEncoder.matches(trimmed, user.getPasswordHash())) {
+            throw new IllegalArgumentException("Password baru tidak boleh sama dengan password lama.");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(trimmed));
+        userRepository.save(user);
+    }
+
     private void ensureEmailAvailable(String normalizedEmail) {
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new IllegalArgumentException("Email sudah terdaftar. Silakan gunakan email lain.");

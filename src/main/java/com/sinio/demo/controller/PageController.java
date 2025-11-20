@@ -1,6 +1,8 @@
 package com.sinio.demo.controller;
 
 import com.sinio.demo.dto.EmployeeRequest;
+import com.sinio.demo.dto.GuestPasswordForm;
+import com.sinio.demo.dto.GuestProfileForm;
 import com.sinio.demo.dto.LoginRequest;
 import com.sinio.demo.dto.RegisterRequest;
 import com.sinio.demo.dto.RoomRequest;
@@ -270,6 +272,110 @@ public class PageController {
             redirectAttributes.addFlashAttribute("guestError", "Gagal membatalkan reservasi.");
         }
         return "redirect:/guest/reservasi";
+    }
+
+    @GetMapping("/guest/akun")
+    public String guestAccount(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.TAMU);
+        if (redirect != null) {
+            return redirect;
+        }
+
+        User user = requireUser(session, redirectAttributes);
+        if (user == null) {
+            return "redirect:/login";
+        }
+
+        populateCommonModel(session, model);
+        model.addAttribute("accountUser", user);
+
+        if (!model.containsAttribute("profileForm")) {
+            GuestProfileForm profileForm = new GuestProfileForm();
+            profileForm.setFullName(user.getFullName());
+            profileForm.setEmail(user.getEmail());
+            model.addAttribute("profileForm", profileForm);
+        }
+        if (!model.containsAttribute("passwordForm")) {
+            model.addAttribute("passwordForm", new GuestPasswordForm());
+        }
+        return "guest_akun";
+    }
+
+    @PostMapping("/guest/akun/profile")
+    public String updateGuestProfile(
+        @Valid @ModelAttribute("profileForm") GuestProfileForm profileForm,
+        BindingResult bindingResult,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.TAMU);
+        if (redirect != null) {
+            return redirect;
+        }
+
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("org.springframework.validation.BindingResult.profileForm", bindingResult);
+            redirectAttributes.addFlashAttribute("profileForm", profileForm);
+            redirectAttributes.addFlashAttribute("focusTarget", "profile");
+            return "redirect:/guest/akun";
+        }
+
+        Long userId = requireUserId(session, redirectAttributes);
+        if (userId == null) {
+            return "redirect:/login";
+        }
+
+        try {
+            User updated = userService.updateGuestProfile(userId, profileForm.getFullName(), profileForm.getEmail());
+            session.setAttribute("userName", updated.getFullName());
+            session.setAttribute("userEmail", updated.getEmail());
+            redirectAttributes.addFlashAttribute("profileSuccess", "Profil berhasil diperbarui.");
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("profileError", ex.getMessage());
+            redirectAttributes.addFlashAttribute("profileForm", profileForm);
+        }
+        redirectAttributes.addFlashAttribute("focusTarget", "profile");
+        return "redirect:/guest/akun";
+    }
+
+    @PostMapping("/guest/akun/password")
+    public String updateGuestPassword(
+        @Valid @ModelAttribute("passwordForm") GuestPasswordForm passwordForm,
+        BindingResult bindingResult,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.TAMU);
+        if (redirect != null) {
+            return redirect;
+        }
+
+        if (passwordForm.getNewPassword() != null
+            && passwordForm.getConfirmPassword() != null
+            && !passwordForm.getNewPassword().equals(passwordForm.getConfirmPassword())) {
+            bindingResult.rejectValue("confirmPassword", "password.mismatch", "Konfirmasi password tidak cocok.");
+        }
+
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("org.springframework.validation.BindingResult.passwordForm", bindingResult);
+            redirectAttributes.addFlashAttribute("passwordForm", passwordForm);
+            redirectAttributes.addFlashAttribute("focusTarget", "password");
+            return "redirect:/guest/akun";
+        }
+
+        Long userId = requireUserId(session, redirectAttributes);
+        if (userId == null) {
+            return "redirect:/login";
+        }
+
+        try {
+            userService.changeGuestPassword(userId, passwordForm.getCurrentPassword(), passwordForm.getNewPassword());
+            redirectAttributes.addFlashAttribute("passwordSuccess", "Password berhasil diperbarui.");
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("passwordError", ex.getMessage());
+        }
+        redirectAttributes.addFlashAttribute("focusTarget", "password");
+        return "redirect:/guest/akun";
     }
 
     @GetMapping("/dashboard/admin")
@@ -591,6 +697,29 @@ public class PageController {
             case KARYAWAN -> "redirect:/dashboard/karyawan";
             case TAMU -> "redirect:/dashboard/tamu";
         };
+    }
+
+    private Long requireUserId(HttpSession session, RedirectAttributes redirectAttributes) {
+        Long userId = (Long) session.getAttribute("userId");
+        if (userId == null) {
+            session.invalidate();
+            redirectAttributes.addFlashAttribute("loginError", "Sesi Anda berakhir. Silakan login ulang.");
+        }
+        return userId;
+    }
+
+    private User requireUser(HttpSession session, RedirectAttributes redirectAttributes) {
+        Long userId = requireUserId(session, redirectAttributes);
+        if (userId == null) {
+            return null;
+        }
+        return userService
+            .findById(userId)
+            .orElseGet(() -> {
+                session.invalidate();
+                redirectAttributes.addFlashAttribute("loginError", "Akun tidak ditemukan. Silakan login ulang.");
+                return null;
+            });
     }
 
     private void populateCommonModel(HttpSession session, Model model) {
