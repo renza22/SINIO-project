@@ -6,7 +6,10 @@ import com.sinio.demo.model.RoomAmenity;
 import com.sinio.demo.model.RoomServiceOption;
 import com.sinio.demo.model.RoomStatus;
 import com.sinio.demo.model.RoomType;
+import com.sinio.demo.repository.FacilityRepository;
+import com.sinio.demo.repository.RoomFacilityRepository;
 import com.sinio.demo.repository.RoomRepository;
+import com.sinio.demo.repository.RoomTypeEntityRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -21,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,9 +35,20 @@ public class RoomService {
             .withLocale(new Locale.Builder().setLanguage("id").setRegion("ID").build());
 
     private final RoomRepository roomRepository;
+    private final FacilityRepository facilityRepository;
+    private final RoomFacilityRepository roomFacilityRepository;
+    private final RoomTypeEntityRepository roomTypeEntityRepository;
 
-    public RoomService(RoomRepository roomRepository) {
+    public RoomService(
+        RoomRepository roomRepository,
+        FacilityRepository facilityRepository,
+        RoomFacilityRepository roomFacilityRepository,
+        RoomTypeEntityRepository roomTypeEntityRepository
+    ) {
         this.roomRepository = roomRepository;
+        this.facilityRepository = facilityRepository;
+        this.roomFacilityRepository = roomFacilityRepository;
+        this.roomTypeEntityRepository = roomTypeEntityRepository;
     }
 
     public List<Room> findAllSorted() {
@@ -50,7 +65,7 @@ public class RoomService {
         long maintenance = rooms.stream().filter(room -> room.getStatus() == RoomStatus.MAINTENANCE).count();
 
         return List.of(
-            statEntry("Total Kamar", total == 0 ? "—" : String.valueOf(total), "Suite, Deluxe, Superior"),
+            statEntry("Total Kamar", total == 0 ? "-" : String.valueOf(total), "Suite, Deluxe, Superior"),
             statEntry("Tersedia", String.valueOf(available), "Siap menerima tamu hari ini"),
             statEntry("Terbooking", String.valueOf(booked), "Check-in terjadwal pekan ini"),
             statEntry("Perawatan", String.valueOf(maintenance), "Sedang dijadwalkan housekeeping")
@@ -80,7 +95,7 @@ public class RoomService {
     }
 
     private String buildActivityTitle(Room room) {
-        return "Kamar " + room.getNumber() + " — " + room.getType().getDisplayName();
+        return "Kamar " + room.getNumber() + " - " + room.getType().getDisplayName();
     }
 
     private String buildActivityDescription(Room room) {
@@ -101,10 +116,13 @@ public class RoomService {
             throw new IllegalArgumentException("Nomor kamar sudah digunakan.");
         });
 
+        List<String> facilityNames = parseFacilityNames(request.getAmenitiesText());
         Room room = new Room();
-        applyRequest(room, request);
+        applyRequest(room, request, facilityNames);
         room.setNumber(normalizedNumber);
-        return roomRepository.save(room);
+        Room saved = roomRepository.save(room);
+        syncRoomFacilities(saved, facilityNames);
+        return saved;
     }
 
     @Transactional
@@ -118,9 +136,12 @@ public class RoomService {
             throw new IllegalArgumentException("Nomor kamar sudah digunakan.");
         }
 
-        applyRequest(room, request);
+        List<String> facilityNames = parseFacilityNames(request.getAmenitiesText());
+        applyRequest(room, request, facilityNames);
         room.setNumber(normalizedNumber);
-        return roomRepository.save(room);
+        Room saved = roomRepository.save(room);
+        syncRoomFacilities(saved, facilityNames);
+        return saved;
     }
 
     @Transactional
@@ -130,18 +151,18 @@ public class RoomService {
         roomRepository.delete(room);
     }
 
-    private void applyRequest(Room room, RoomRequest request) {
+    private void applyRequest(Room room, RoomRequest request, List<String> facilityNames) {
         room.setType(request.getType());
         room.setRate(request.getRate());
         room.setStatus(request.getStatus());
         room.setNote(request.getNote());
         room.setLastCleanedAt(request.getLastCleanedAt());
 
-        List<RoomAmenity> amenities = parseAmenities(request.getAmenitiesText(), room);
-        if (amenities.isEmpty() && room.getId() == null) {
-            amenities = defaultAmenityEntities(room, request.getType());
+        List<String> amenitiesNames = facilityNames;
+        if (amenitiesNames == null || amenitiesNames.isEmpty()) {
+            amenitiesNames = getDefaultAmenities(request.getType());
         }
-        room.setAmenities(amenities);
+        room.setAmenities(toAmenities(amenitiesNames, room));
 
         List<RoomServiceOption> options = parseServiceOptions(request.getServicesText(), room);
         if (options.isEmpty() && room.getId() == null) {
@@ -151,7 +172,24 @@ public class RoomService {
     }
 
     public List<RoomType> getRoomTypes() {
-        return RoomType.defaultOrder();
+        List<RoomType> enums = RoomType.defaultOrder();
+        var masters = roomTypeEntityRepository.findAll();
+        if (masters.isEmpty()) {
+            return enums;
+        }
+        // map by code; fall back to enums for unknown codes
+        List<RoomType> ordered = new ArrayList<>();
+        masters.forEach(m -> {
+            try {
+                ordered.add(RoomType.valueOf(m.getCode()));
+            } catch (IllegalArgumentException ignored) {
+                // ignore unknown codes to avoid breaking forms
+            }
+        });
+        if (ordered.isEmpty()) {
+            return enums;
+        }
+        return ordered;
     }
 
     public RoomRequest toRequest(Room room) {
@@ -163,11 +201,7 @@ public class RoomService {
         request.setStatus(room.getStatus());
         request.setNote(room.getNote());
         request.setLastCleanedAt(room.getLastCleanedAt());
-        request.setAmenitiesText(
-            Optional.ofNullable(room.getAmenities()).orElse(List.of()).stream()
-                .map(RoomAmenity::getName)
-                .collect(Collectors.joining("\n"))
-        );
+        request.setAmenitiesText(String.join("\n", resolveFacilityNames(room)));
         request.setServicesText(
             Optional.ofNullable(room.getServiceOptions()).orElse(List.of()).stream()
                 .sorted(Comparator.comparing(RoomServiceOption::getSortOrder, Comparator.nullsLast(Integer::compareTo))
@@ -184,6 +218,19 @@ public class RoomService {
 
     public Optional<Room> findById(Long id) {
         return roomRepository.findById(id);
+    }
+
+    public List<String> getFacilityOptions() {
+        List<String> options = facilityRepository.findAll().stream()
+            .map(com.sinio.demo.model.Facility::getName)
+            .filter(StringUtils::hasText)
+            .sorted(String.CASE_INSENSITIVE_ORDER)
+            .toList();
+        if (!options.isEmpty()) {
+            return options;
+        }
+        // fallback to defaults so UI is never empty
+        return getDefaultAmenities(RoomType.STANDARD);
     }
 
     // --- Guest utilities (non-persistent helpers) ---
@@ -209,25 +256,18 @@ public class RoomService {
 
     @Transactional
     public List<String> resolveAmenities(Room room) {
-        List<RoomAmenity> entities = Optional.ofNullable(room.getAmenities()).orElse(List.of());
-        List<String> stored = entities.stream()
-            .map(RoomAmenity::getName)
-            .filter(name -> name != null && !name.isBlank())
-            .collect(Collectors.toList());
-        if (!stored.isEmpty()) {
-            return stored;
+        List<String> facilities = resolveFacilityNames(room);
+        if (!facilities.isEmpty()) {
+            return facilities;
         }
-
         List<String> defaults = getDefaultAmenities(room.getType());
         if (room.getId() == null) {
             return defaults;
         }
-        List<RoomAmenity> newEntities = defaultAmenityEntities(room, room.getType());
-        room.setAmenities(newEntities);
+        syncRoomFacilities(room, defaults);
+        room.setAmenities(toAmenities(defaults, room));
         Room saved = roomRepository.save(room);
-        return Optional.ofNullable(saved.getAmenities()).orElse(newEntities).stream()
-            .map(RoomAmenity::getName)
-            .collect(Collectors.toList());
+        return resolveFacilityNames(saved);
     }
 
     @Transactional
@@ -252,38 +292,19 @@ public class RoomService {
             .collect(Collectors.toList());
     }
 
-    private List<RoomAmenity> parseAmenities(String raw, Room room) {
+    private List<String> parseFacilityNames(String raw) {
         if (!StringUtils.hasText(raw)) {
             return List.of();
         }
-        List<RoomAmenity> amenities = new ArrayList<>();
         String[] lines = raw.split("\\r?\\n");
-        int order = 0;
+        List<String> names = new ArrayList<>();
         for (String line : lines) {
             String value = line != null ? line.trim() : "";
-            if (value.isEmpty()) {
-                continue;
+            if (!value.isEmpty()) {
+                names.add(value);
             }
-            RoomAmenity amenity = new RoomAmenity();
-            amenity.setName(value);
-            amenity.setSortOrder(order++);
-            amenity.setRoom(room);
-            amenities.add(amenity);
         }
-        return amenities;
-    }
-
-    private List<RoomAmenity> defaultAmenityEntities(Room room, RoomType type) {
-        List<String> defaults = getDefaultAmenities(type);
-        List<RoomAmenity> amenities = new ArrayList<>();
-        for (int i = 0; i < defaults.size(); i++) {
-            RoomAmenity amenity = new RoomAmenity();
-            amenity.setName(defaults.get(i));
-            amenity.setSortOrder(i);
-            amenity.setRoom(room);
-            amenities.add(amenity);
-        }
-        return amenities;
+        return names;
     }
 
     private List<RoomServiceOption> parseServiceOptions(String raw, Room room) {
@@ -365,6 +386,81 @@ public class RoomService {
         return name + " | " + unit + " | " + price.stripTrailingZeros().toPlainString();
     }
 
+    private List<RoomAmenity> toAmenities(List<String> names, Room room) {
+        List<RoomAmenity> amenities = new ArrayList<>();
+        int order = 0;
+        for (String name : names) {
+            RoomAmenity amenity = new RoomAmenity();
+            amenity.setName(name);
+            amenity.setSortOrder(order++);
+            amenity.setRoom(room);
+            amenities.add(amenity);
+        }
+        return amenities;
+    }
+
+    private List<String> resolveFacilityNames(Room room) {
+        if (room.getId() != null) {
+            List<String> fromJoins = roomFacilityRepository.findByRoom_Id(room.getId()).stream()
+                .map(rf -> rf.getFacility().getName())
+                .filter(StringUtils::hasText)
+                .toList();
+            if (!fromJoins.isEmpty()) {
+                return fromJoins;
+            }
+        }
+        return Optional.ofNullable(room.getAmenities()).orElse(List.of()).stream()
+            .map(RoomAmenity::getName)
+            .filter(name -> name != null && !name.isBlank())
+            .toList();
+    }
+
+    @Transactional
+    void syncRoomFacilities(Room room, List<String> names) {
+        if (room == null || room.getId() == null) {
+            return;
+        }
+        List<String> distinct = Optional.ofNullable(names).orElse(List.of())
+            .stream()
+            .filter(StringUtils::hasText)
+            .map(String::trim)
+            .distinct()
+            .toList();
+
+        // Ensure facilities exist
+        List<com.sinio.demo.model.Facility> facilities = new ArrayList<>();
+        for (String name : distinct) {
+            com.sinio.demo.model.Facility facility = facilityRepository.findByNameIgnoreCase(name)
+                .orElseGet(() -> {
+                    com.sinio.demo.model.Facility f = new com.sinio.demo.model.Facility();
+                    f.setName(name);
+                    return facilityRepository.save(f);
+                });
+            facilities.add(facility);
+        }
+
+        // Current joins
+        List<com.sinio.demo.model.RoomFacility> current = roomFacilityRepository.findByRoom_Id(room.getId());
+        Map<Long, com.sinio.demo.model.RoomFacility> byFacilityId = current.stream()
+            .collect(Collectors.toMap(rf -> rf.getFacility().getId(), rf -> rf));
+
+        // Add missing joins
+        for (com.sinio.demo.model.Facility facility : facilities) {
+            if (!byFacilityId.containsKey(facility.getId())) {
+                com.sinio.demo.model.RoomFacility rf = new com.sinio.demo.model.RoomFacility();
+                rf.setRoom(room);
+                rf.setFacility(facility);
+                roomFacilityRepository.save(rf);
+            }
+        }
+
+        // Remove joins not in desired set
+        Set<Long> desiredIds = facilities.stream().map(com.sinio.demo.model.Facility::getId).collect(Collectors.toSet());
+        current.stream()
+            .filter(rf -> !desiredIds.contains(rf.getFacility().getId()))
+            .forEach(roomFacilityRepository::delete);
+    }
+
     private static <T> List<T> concat(List<T> a, List<T> b) {
         return new java.util.ArrayList<>() {{
             addAll(a);
@@ -372,3 +468,4 @@ public class RoomService {
         }};
     }
 }
+

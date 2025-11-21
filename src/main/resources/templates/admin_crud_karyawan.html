@@ -321,7 +321,10 @@
         <tr th:each="employee : ${employees}" th:data-id="${employee.id}">
           <td>
             <div class="fw-semibold" th:text="${employee.fullName}">Nama Karyawan</div>
-            <span class="badge-role mt-2 d-inline-block">Karyawan</span>
+            <div class="mt-2 d-flex flex-wrap gap-1">
+              <span class="badge-role d-inline-block" th:each="role : ${employee.roles}" th:text="${role}">Resepsionis</span>
+              <span class="badge-role d-inline-block" th:if="${#lists.isEmpty(employee.roles)}">-</span>
+            </div>
           </td>
           <td>
             <div class="text-muted small" th:text="${employee.email}">email@sinio.com</div>
@@ -333,7 +336,7 @@
                       class="btn btn-outline-brand edit-employee-btn"
                       data-bs-toggle="modal"
                       data-bs-target="#editEmployeeModal"
-                      th:attr="data-id=${employee.id},data-name=${employee.fullName},data-email=${employee.email}">
+                      th:attr="data-id=${employee.id},data-name=${employee.fullName},data-email=${employee.email},data-roles=${#strings.listJoin(employee.roleCodes, ',')}">
                 <i class="bi bi-pencil-square"></i>
               </button>
               <button type="button"
@@ -386,6 +389,19 @@
             <div class="invalid-feedback" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
           </div>
           <div class="mb-3">
+            <label class="form-label">Peran Karyawan</label>
+            <div class="d-flex flex-wrap gap-2">
+              <div class="form-check" th:each="role : ${roleOptions}">
+                <input class="form-check-input" type="checkbox"
+                       th:id="${'create-role-' + role.code}"
+                       th:value="${role.code}"
+                       th:field="*{roleCodes}">
+                <label class="form-check-label" th:for="${'create-role-' + role.code}" th:text="${role.label}">Resepsionis</label>
+              </div>
+            </div>
+            <div class="invalid-feedback d-block" th:if="${#fields.hasErrors('roleCodes')}" th:errors="*{roleCodes}"></div>
+          </div>
+          <div class="mb-3">
             <label class="form-label">Password</label>
             <input type="password" class="form-control" placeholder="Minimal 6 karakter"
                    th:field="*{password}" th:classappend="${#fields.hasErrors('password')} ? ' is-invalid' : ''">
@@ -436,6 +452,19 @@
             <input type="email" class="form-control" th:field="*{email}"
                    th:classappend="${#fields.hasErrors('email')} ? ' is-invalid' : ''">
             <div class="invalid-feedback" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Peran Karyawan</label>
+            <div class="d-flex flex-wrap gap-2">
+              <div class="form-check" th:each="role : ${roleOptions}">
+                <input class="form-check-input" type="checkbox"
+                       th:id="${'edit-role-' + role.code}"
+                       th:value="${role.code}"
+                       th:field="*{roleCodes}">
+                <label class="form-check-label" th:for="${'edit-role-' + role.code}" th:text="${role.label}">Resepsionis</label>
+              </div>
+            </div>
+            <div class="invalid-feedback d-block" th:if="${#fields.hasErrors('roleCodes')}" th:errors="*{roleCodes}"></div>
           </div>
           <div class="mb-3">
             <label class="form-label">Password Baru <span class="text-muted">(opsional)</span></label>
@@ -547,6 +576,8 @@
       const id = trigger.getAttribute('data-id');
       const name = trigger.getAttribute('data-name');
       const email = trigger.getAttribute('data-email');
+      const rolesRaw = trigger.getAttribute('data-roles') ?? '';
+      const roles = rolesRaw.split(',').map(r => r.trim()).filter(r => r.length > 0);
 
       const template = editForm.getAttribute('data-action-template');
       if (template && id) {
@@ -558,12 +589,18 @@
       const emailInput = editForm.querySelector('input[name="email"]');
       const passwordInput = editForm.querySelector('input[name="password"]');
       const confirmInput = editForm.querySelector('input[name="confirmPassword"]');
+      const roleInputs = editForm.querySelectorAll('input[name="roleCodes"]');
 
       if (idInput) idInput.value = id ?? '';
       if (nameInput && !nameInput.classList.contains('is-invalid')) nameInput.value = name ?? '';
       if (emailInput && !emailInput.classList.contains('is-invalid')) emailInput.value = email ?? '';
       if (passwordInput && !passwordInput.classList.contains('is-invalid')) passwordInput.value = '';
       if (confirmInput && !confirmInput.classList.contains('is-invalid')) confirmInput.value = '';
+      roleInputs.forEach(input => {
+        if (!input.classList.contains('is-invalid')) {
+          input.checked = roles.includes(input.value);
+        }
+      });
     });
   }
 

@@ -39,7 +39,7 @@ public class Reservation {
 
     @ManyToOne(optional = false, fetch = FetchType.EAGER)
     @JoinColumn(name = "room_id", nullable = false)
-    private Room room;
+    private Room room; // legacy single-room shortcut to keep existing views working
 
     @Column(name = "check_in", nullable = false)
     private LocalDate checkIn;
@@ -59,6 +59,15 @@ public class Reservation {
     )
     @OrderBy("id ASC")
     private List<ReservationServiceSelection> requestedServices = new ArrayList<>();
+
+    @OneToMany(
+        mappedBy = "reservation",
+        cascade = CascadeType.ALL,
+        orphanRemoval = true,
+        fetch = FetchType.EAGER
+    )
+    @OrderBy("id ASC")
+    private List<ReservationRoom> reservationRooms = new ArrayList<>();
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -144,5 +153,25 @@ public class Reservation {
                 .map(ReservationServiceSelection::getUnitPrice)
                 .filter(price -> price != null)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public List<ReservationRoom> getReservationRooms() {
+        return reservationRooms;
+    }
+
+    public void setReservationRooms(List<ReservationRoom> reservationRooms) {
+        this.reservationRooms.clear();
+        if (reservationRooms == null) {
+            return;
+        }
+        reservationRooms.forEach(rr -> rr.setReservation(this));
+        this.reservationRooms.addAll(reservationRooms);
+    }
+
+    public Room primaryRoom() {
+        if (reservationRooms != null && !reservationRooms.isEmpty()) {
+            return reservationRooms.get(0).getRoom();
+        }
+        return room;
     }
 }

@@ -3,6 +3,7 @@ package com.sinio.demo.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.util.Set;
 
 public class EmployeeRequest {
 
@@ -16,6 +17,9 @@ public class EmployeeRequest {
     @Email(message = "Format email tidak valid.")
     @Size(max = 120, message = "Email maksimal 120 karakter.")
     private String email;
+
+    @jakarta.validation.constraints.NotEmpty(message = "Minimal satu peran karyawan harus dipilih.")
+    private Set<String> roleCodes;
 
     private String password;
     private String confirmPassword;
@@ -42,6 +46,14 @@ public class EmployeeRequest {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public Set<String> getRoleCodes() {
+        return roleCodes;
+    }
+
+    public void setRoleCodes(Set<String> roleCodes) {
+        this.roleCodes = roleCodes;
     }
 
     public String getPassword() {

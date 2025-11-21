@@ -1,13 +1,24 @@
 package com.sinio.demo.service;
 
 import com.sinio.demo.dto.EmployeeRequest;
+import com.sinio.demo.dto.EmployeeRoleOption;
+import com.sinio.demo.dto.EmployeeView;
 import com.sinio.demo.dto.RegisterRequest;
+import com.sinio.demo.model.Guest;
+import com.sinio.demo.model.Karyawan;
+import com.sinio.demo.model.Role;
 import com.sinio.demo.model.User;
 import com.sinio.demo.model.UserRole;
+import com.sinio.demo.repository.GuestRepository;
+import com.sinio.demo.repository.KaryawanRepository;
+import com.sinio.demo.repository.RoleRepository;
 import com.sinio.demo.repository.UserRepository;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,12 +28,29 @@ import org.springframework.util.StringUtils;
 public class UserService {
 
     private static final int MIN_PASSWORD_LENGTH = 6;
+    private static final Map<String, String> ROLE_LABELS = Map.of(
+        "RESEPSIONIS", "Resepsionis",
+        "HOUSEKEEPING", "Housekeeping",
+        "KASIR", "Kasir"
+    );
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final GuestRepository guestRepository;
+    private final KaryawanRepository karyawanRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(
+        UserRepository userRepository,
+        GuestRepository guestRepository,
+        RoleRepository roleRepository,
+        KaryawanRepository karyawanRepository,
+        PasswordEncoder passwordEncoder
+    ) {
         this.userRepository = userRepository;
+        this.guestRepository = guestRepository;
+        this.roleRepository = roleRepository;
+        this.karyawanRepository = karyawanRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -39,7 +67,9 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setRole(UserRole.TAMU);
 
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        ensureGuestProfile(saved);
+        return saved;
     }
 
     public Optional<User> authenticate(String email, String rawPassword) {
@@ -57,14 +87,18 @@ public class UserService {
     public User ensureRole(User user) {
         if (user.getRole() == null) {
             user.setRole(UserRole.TAMU);
-            return userRepository.save(user);
+            User saved = userRepository.save(user);
+            ensureGuestProfile(saved);
+            return saved;
         }
+        ensureGuestProfile(user);
         return user;
     }
 
     @Transactional(readOnly = true)
-    public List<User> findAllEmployees() {
-        return userRepository.findAllByRoleOrderByFullNameAsc(UserRole.KARYAWAN);
+    public List<EmployeeView> findAllEmployees() {
+        List<User> users = userRepository.findAllByRoleOrderByFullNameAsc(UserRole.KARYAWAN);
+        return users.stream().map(this::toView).toList();
     }
 
     @Transactional
@@ -72,6 +106,7 @@ public class UserService {
         String normalizedEmail = normalizeEmail(request.getEmail());
         ensureEmailAvailable(normalizedEmail);
         String password = requireValidPassword(request, true);
+        Set<Role> roles = resolveRoles(request.getRoleCodes());
 
         User employee = new User();
         employee.setFullName(request.getFullName().trim());
@@ -79,7 +114,9 @@ public class UserService {
         employee.setPasswordHash(passwordEncoder.encode(password));
         employee.setRole(UserRole.KARYAWAN);
 
-        return userRepository.save(employee);
+        User saved = userRepository.save(employee);
+        upsertKaryawan(saved, roles);
+        return saved;
     }
 
     @Transactional
@@ -107,7 +144,10 @@ public class UserService {
             employee.setPasswordHash(passwordEncoder.encode(password));
         }
 
-        return userRepository.save(employee);
+        User saved = userRepository.save(employee);
+        Set<Role> roles = resolveRoles(request.getRoleCodes());
+        upsertKaryawan(saved, roles);
+        return saved;
     }
 
     @Transactional
@@ -124,6 +164,7 @@ public class UserService {
             throw new IllegalArgumentException("Anda tidak dapat menghapus akun sendiri.");
         }
 
+        karyawanRepository.findByUserId(id).ifPresent(karyawanRepository::delete);
         userRepository.delete(employee);
     }
 
@@ -217,5 +258,84 @@ public class UserService {
             return email;
         }
         return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    @Transactional(readOnly = true)
+    public List<EmployeeRoleOption> getRoleOptions() {
+        return ROLE_LABELS.entrySet().stream()
+            .map(e -> new EmployeeRoleOption(e.getKey(), e.getValue()))
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> getEmployeeRoleCodes(Long userId) {
+        return karyawanRepository.findByUserId(userId)
+            .map(k -> k.getRoles().stream()
+                .map(Role::getCode)
+                .filter(StringUtils::hasText)
+                .map(String::toUpperCase)
+                .toList())
+            .orElseGet(List::of);
+    }
+
+    private Set<Role> resolveRoles(Set<String> codes) {
+        if (codes == null || codes.isEmpty()) {
+            throw new IllegalArgumentException("Minimal satu peran karyawan harus dipilih.");
+        }
+        Set<String> normalized = codes.stream()
+            .filter(StringUtils::hasText)
+            .map(c -> c.trim().toUpperCase(Locale.ROOT))
+            .collect(Collectors.toSet());
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException("Minimal satu peran karyawan harus dipilih.");
+        }
+
+        List<Role> existing = roleRepository.findByCodeIn(normalized);
+        Set<String> foundCodes = existing.stream().map(Role::getCode).collect(Collectors.toSet());
+
+        normalized.stream()
+            .filter(code -> !foundCodes.contains(code))
+            .forEach(code -> {
+                Role role = new Role();
+                role.setCode(code);
+                role.setName(ROLE_LABELS.getOrDefault(code, code));
+                roleRepository.save(role);
+                existing.add(role);
+            });
+
+        return existing.stream().collect(Collectors.toSet());
+    }
+
+    private EmployeeView toView(User user) {
+        EmployeeView view = new EmployeeView();
+        view.setId(user.getId());
+        view.setFullName(user.getFullName());
+        view.setEmail(user.getEmail());
+        view.setCreatedAt(user.getCreatedAt());
+        List<String> codes = getEmployeeRoleCodes(user.getId());
+        view.setRoleCodes(codes);
+        view.setRoles(codes.stream().map(code -> ROLE_LABELS.getOrDefault(code, code)).toList());
+        return view;
+    }
+
+    private void upsertKaryawan(User user, Set<Role> roles) {
+        if (user == null) {
+            return;
+        }
+        Karyawan karyawan = karyawanRepository.findByUserId(user.getId()).orElseGet(Karyawan::new);
+        karyawan.setUser(user);
+        karyawan.setRoles(roles);
+        karyawanRepository.save(karyawan);
+    }
+
+    private void ensureGuestProfile(User user) {
+        if (user == null || user.getId() == null) {
+            return;
+        }
+        guestRepository.findByUser_Id(user.getId()).orElseGet(() -> {
+            Guest guest = new Guest();
+            guest.setUser(user);
+            return guestRepository.save(guest);
+        });
     }
 }

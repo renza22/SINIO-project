@@ -1,6 +1,8 @@
 package com.sinio.demo.controller;
 
 import com.sinio.demo.dto.EmployeeRequest;
+import com.sinio.demo.dto.EmployeeRoleOption;
+import com.sinio.demo.dto.EmployeeView;
 import com.sinio.demo.dto.GuestPasswordForm;
 import com.sinio.demo.dto.GuestProfileForm;
 import com.sinio.demo.dto.LoginRequest;
@@ -31,6 +33,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Controller
 public class PageController {
@@ -45,7 +48,16 @@ public class PageController {
         this.reservationService = reservationService;
     }
 
-    @GetMapping({"/", "/login"})
+    @GetMapping("/")
+    public String landing(Model model) {
+        List<Room> rooms = roomService.findAllSorted();
+        List<Room> featured = rooms.stream().limit(3).toList();
+        model.addAttribute("featuredRooms", featured);
+        model.addAttribute("hasRooms", !featured.isEmpty());
+        return "landing";
+    }
+
+    @GetMapping("/login")
     public String showLoginPage(Model model) {
         if (!model.containsAttribute("registerRequest")) {
             model.addAttribute("registerRequest", new RegisterRequest());
@@ -116,6 +128,11 @@ public class PageController {
         session.setAttribute("userEmail", ensuredUser.getEmail());
         UserRole role = ensuredUser.getRole() != null ? ensuredUser.getRole() : UserRole.TAMU;
         session.setAttribute("userRole", role);
+        if (role == UserRole.KARYAWAN) {
+            session.setAttribute("userRoles", userService.getEmployeeRoleCodes(ensuredUser.getId()));
+        } else {
+            session.setAttribute("userRoles", java.util.Collections.emptyList());
+        }
         return redirectForRole(role);
     }
 
@@ -396,13 +413,19 @@ public class PageController {
         }
 
         populateCommonModel(session, model);
-        model.addAttribute("employees", userService.findAllEmployees());
+        List<EmployeeView> employees = userService.findAllEmployees();
+        model.addAttribute("employees", employees);
+        model.addAttribute("roleOptions", userService.getRoleOptions());
 
         if (!model.containsAttribute("createForm")) {
-            model.addAttribute("createForm", new EmployeeRequest());
+            EmployeeRequest create = new EmployeeRequest();
+            create.setRoleCodes(Set.of("RESEPSIONIS"));
+            model.addAttribute("createForm", create);
         }
         if (!model.containsAttribute("editForm")) {
-            model.addAttribute("editForm", new EmployeeRequest());
+            EmployeeRequest edit = new EmployeeRequest();
+            edit.setRoleCodes(Set.of("RESEPSIONIS"));
+            model.addAttribute("editForm", edit);
         }
         if (!model.containsAttribute("formMode")) {
             model.addAttribute("formMode", "create");
@@ -510,6 +533,7 @@ public class PageController {
         model.addAttribute("roomActivities", roomService.buildActivities(rooms));
         model.addAttribute("roomTypes", roomService.getRoomTypes());
         model.addAttribute("roomStatuses", roomService.getRoomStatuses());
+        model.addAttribute("facilityOptions", roomService.getFacilityOptions());
 
         if (!model.containsAttribute("roomForm")) {
             model.addAttribute("roomForm", new RoomRequest());
@@ -645,6 +669,11 @@ public class PageController {
                 session.setAttribute("userEmail", user.getEmail());
                 UserRole role = user.getRole() != null ? user.getRole() : UserRole.TAMU;
                 session.setAttribute("userRole", role);
+                if (role == UserRole.KARYAWAN) {
+                    session.setAttribute("userRoles", userService.getEmployeeRoleCodes(user.getId()));
+                } else {
+                    session.setAttribute("userRoles", java.util.Collections.emptyList());
+                }
                 return role;
             })
             .orElse(null);
@@ -742,6 +771,7 @@ public class PageController {
             model.addAttribute("aktif", null);
         }
         model.addAttribute("invoice", null);
+        model.addAttribute("facilityOptions", roomService.getFacilityOptions());
         model.addAttribute("layananList", Collections.emptyList());
         model.addAttribute("keranjangLayanan", Collections.emptyList());
         model.addAttribute("layananForm", new LayananForm());
@@ -782,6 +812,7 @@ public class PageController {
 
         model.addAttribute("recentReservations", reservationService.recentReservationsView());
         model.addAttribute("recentPayments", Collections.emptyList());
+        model.addAttribute("facilityOptions", roomService.getFacilityOptions());
     }
 
     // ---- Staff (Karyawan): reservation transitions ----
@@ -823,6 +854,7 @@ public class PageController {
         model.addAttribute("checkinToday", reservationService.arrivalsTodayView());
         model.addAttribute("checkoutToday", reservationService.departuresTodayView());
         model.addAttribute("inhouse", reservationService.inhouseView());
+        model.addAttribute("facilityOptions", roomService.getFacilityOptions());
         model.addAttribute("ordersInProgress", Collections.emptyList());
     }
 

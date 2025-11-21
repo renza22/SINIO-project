@@ -574,6 +574,13 @@
             </div>
             <div class="col-12">
               <label class="form-label" for="createRoomAmenities">Daftar Fasilitas</label>
+              <div class="d-flex flex-wrap gap-2 mb-2" id="createFacilityPicker">
+                <button type="button"
+                        class="btn btn-outline-brand btn-sm"
+                        th:each="fac : ${facilityOptions}"
+                        th:data-name="${fac}"
+                        th:text="${fac}">Wi-Fi</button>
+              </div>
               <textarea id="createRoomAmenities"
                         class="form-control"
                         rows="4"
@@ -581,7 +588,7 @@
                         th:classappend="${#fields.hasErrors('amenitiesText')} ? ' is-invalid' : ''"
                         placeholder="Wi-Fi berkecepatan tinggi&#10;TV Kabel HD&#10;Kopi & teh gratis"></textarea>
               <div class="invalid-feedback" th:if="${#fields.hasErrors('amenitiesText')}" th:errors="*{amenitiesText}">Fasilitas tidak valid</div>
-              <div class="form-text">Masukkan satu fasilitas per baris agar tamu dapat melihat sesuai data di database.</div>
+              <div class="form-text">Klik pilihan di atas untuk menambah/menghapus, atau ketik manual satu fasilitas per baris.</div>
             </div>
             <div class="col-12">
               <label class="form-label" for="createRoomServices">Layanan Berbayar</label>
@@ -687,13 +694,20 @@
             </div>
             <div class="col-12">
               <label class="form-label" for="editRoomAmenities">Daftar Fasilitas</label>
+              <div class="d-flex flex-wrap gap-2 mb-2" id="editFacilityPicker">
+                <button type="button"
+                        class="btn btn-outline-brand btn-sm"
+                        th:each="fac : ${facilityOptions}"
+                        th:data-name="${fac}"
+                        th:text="${fac}">Wi-Fi</button>
+              </div>
               <textarea id="editRoomAmenities"
                         class="form-control"
                         rows="4"
                         th:field="*{amenitiesText}"
                         th:classappend="${#fields.hasErrors('amenitiesText')} ? ' is-invalid' : ''"></textarea>
               <div class="invalid-feedback" th:if="${#fields.hasErrors('amenitiesText')}" th:errors="*{amenitiesText}">Fasilitas tidak valid</div>
-              <div class="form-text">Satu fasilitas per baris, sesuai yang ingin ditampilkan ke tamu.</div>
+              <div class="form-text">Klik pilihan di atas untuk menambah/menghapus, atau ketik manual satu fasilitas per baris.</div>
             </div>
             <div class="col-12">
               <label class="form-label" for="editRoomServices">Layanan Berbayar</label>
@@ -863,6 +877,42 @@
   }
 
   window.addEventListener('DOMContentLoaded', () => {
+    const setupFacilityPicker = (pickerSelector, textareaSelector) => {
+      const picker = document.querySelector(pickerSelector);
+      const textarea = document.querySelector(textareaSelector);
+      if (!picker || !textarea) return;
+
+      const syncButtons = () => {
+        const values = new Set(
+          textarea.value.split(/\r?\n/).map(v => v.trim()).filter(v => v.length > 0)
+        );
+        picker.querySelectorAll('[data-name]').forEach(btn => {
+          const name = btn.getAttribute('data-name') || '';
+          const active = values.has(name);
+          btn.classList.toggle('btn-brand', active);
+          btn.classList.toggle('btn-outline-brand', !active);
+        });
+      };
+
+      picker.addEventListener('click', e => {
+        const btn = e.target.closest('[data-name]');
+        if (!btn) return;
+        const name = btn.getAttribute('data-name') || '';
+        const values = new Set(
+          textarea.value.split(/\r?\n/).map(v => v.trim()).filter(v => v.length > 0)
+        );
+        if (values.has(name)) {
+          values.delete(name);
+        } else {
+          values.add(name);
+        }
+        textarea.value = Array.from(values).join('\n');
+        syncButtons();
+      });
+
+      textarea.addEventListener('input', syncButtons);
+      syncButtons();
+    };
     const bodyDataset = document.body.dataset;
     const createForm = document.getElementById('createRoomForm');
     if (createForm && createForm.querySelector('.is-invalid')) {
@@ -878,7 +928,11 @@
       }
       editModal?.show();
     }
+
+    setupFacilityPicker('#createFacilityPicker', '#createRoomAmenities');
+    setupFacilityPicker('#editFacilityPicker', '#editRoomAmenities');
   });
 </script>
 </body>
 </html>
+

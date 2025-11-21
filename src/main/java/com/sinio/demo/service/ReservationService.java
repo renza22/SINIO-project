@@ -4,6 +4,7 @@ import com.sinio.demo.dto.ReservationRequest;
 import com.sinio.demo.dto.ReservationView;
 import com.sinio.demo.model.*;
 import com.sinio.demo.repository.ReservationRepository;
+import com.sinio.demo.repository.ReservationRoomRepository;
 import com.sinio.demo.repository.RoomRepository;
 import com.sinio.demo.repository.UserRepository;
 import com.sinio.demo.repository.StayRepository;
@@ -25,12 +26,20 @@ import java.util.stream.Collectors;
 public class ReservationService {
 
     private final ReservationRepository reservationRepository;
+    private final ReservationRoomRepository reservationRoomRepository;
     private final RoomRepository roomRepository;
     private final UserRepository userRepository;
     private final StayRepository stayRepository;
 
-    public ReservationService(ReservationRepository reservationRepository, RoomRepository roomRepository, UserRepository userRepository, StayRepository stayRepository) {
+    public ReservationService(
+        ReservationRepository reservationRepository,
+        ReservationRoomRepository reservationRoomRepository,
+        RoomRepository roomRepository,
+        UserRepository userRepository,
+        StayRepository stayRepository
+    ) {
         this.reservationRepository = reservationRepository;
+        this.reservationRoomRepository = reservationRoomRepository;
         this.roomRepository = roomRepository;
         this.userRepository = userRepository;
         this.stayRepository = stayRepository;
@@ -55,11 +64,18 @@ public class ReservationService {
 
         Reservation reservation = new Reservation();
         reservation.setUser(user);
-        reservation.setRoom(room);
+        reservation.setRoom(room); // legacy compatibility
         reservation.setCheckIn(request.getCheckIn());
         reservation.setCheckOut(request.getCheckOut());
         reservation.setStatus(ReservationStatus.BOOKED);
         reservation.setRequestedServices(buildSelectedServices(reservation, room, request.getRequestedServiceIds()));
+
+        ReservationRoom rr = new ReservationRoom();
+        rr.setReservation(reservation);
+        rr.setRoom(room);
+        rr.setNightlyRate(room.getRate());
+        reservation.setReservationRooms(List.of(rr));
+
         Reservation saved = reservationRepository.save(reservation);
         // Set final human-friendly code based on ID
         saved.setCode("RSV-" + saved.getId());
@@ -84,8 +100,8 @@ public class ReservationService {
             .map(r -> new ReservationView(
                 r.getId(),
                 r.getCode(),
-                r.getRoom().getNumber(),
-                r.getRoom().getType().getDisplayName(),
+                primaryRoom(r).getNumber(),
+                primaryRoom(r).getType().getDisplayName(),
                 fmt.format(r.getCheckIn()) + " - " + fmt.format(r.getCheckOut()),
                 r.getStatus().name()
             ))
@@ -101,13 +117,23 @@ public class ReservationService {
         stayRepository.findByReservation_IdAndCheckoutAtIsNull(r.getId()).ifPresent(s -> {
             throw new IllegalStateException("Reservasi sudah check-in dan tidak dapat dibatalkan.");
         });
-        Room room = r.getRoom();
+        List<ReservationRoom> rooms = r.getReservationRooms();
         reservationRepository.delete(r);
 
-        if (room != null) {
-            // simple approach: kembalikan status kamar ke AVAILABLE
-            room.setStatus(RoomStatus.AVAILABLE);
-            roomRepository.save(room);
+        if (rooms == null || rooms.isEmpty()) {
+            Room legacy = r.getRoom();
+            if (legacy != null) {
+                legacy.setStatus(RoomStatus.AVAILABLE);
+                roomRepository.save(legacy);
+            }
+        } else {
+            rooms.forEach(rr -> {
+            Room room = rr.getRoom();
+            if (room != null) {
+                room.setStatus(RoomStatus.AVAILABLE);
+                roomRepository.save(room);
+            }
+            });
         }
     }
 
@@ -128,8 +154,8 @@ public class ReservationService {
         m.put("reservasiId", r.getId());
         m.put("checkinRencana", r.getCheckIn());
         m.put("checkoutRencana", r.getCheckOut());
-        m.put("nomorKamar", r.getRoom().getNumber());
-        m.put("namaTipe", r.getRoom().getType().getDisplayName());
+        m.put("nomorKamar", primaryRoom(r).getNumber());
+        m.put("namaTipe", primaryRoom(r).getType().getDisplayName());
         m.put("status", r.getStatus().name());
         String badge = switch (r.getStatus()) {
             case BOOKED -> "warning";
@@ -164,7 +190,7 @@ public class ReservationService {
             m.put("reservasiId", r.getId());
             m.put("kode", r.getCode());
             m.put("tamuNama", r.getUser().getFullName());
-            m.put("tipeKamar", r.getRoom().getType().getDisplayName());
+            m.put("tipeKamar", primaryRoom(r).getType().getDisplayName());
             m.put("checkinRencana", r.getCheckIn());
             m.put("checkoutRencana", r.getCheckOut());
             m.put("status", r.getStatus().name());
@@ -206,8 +232,8 @@ public class ReservationService {
         m.put("reservasiId", r.getId());
         m.put("kode", r.getCode());
         m.put("tamuNama", r.getUser().getFullName());
-        m.put("nomorKamar", r.getRoom().getNumber());
-        m.put("tipeKamar", r.getRoom().getType().getDisplayName());
+        m.put("nomorKamar", primaryRoom(r).getNumber());
+        m.put("tipeKamar", primaryRoom(r).getType().getDisplayName());
         m.put("checkin", r.getCheckIn());
         m.put("checkout", r.getCheckOut());
         m.put("status", r.getStatus().name());
@@ -271,11 +297,11 @@ public class ReservationService {
         Stay stay = new Stay();
         stay.setUser(r.getUser());
         stay.setReservation(r);
-        stay.setRoom(r.getRoom());
+        stay.setRoom(primaryRoom(r));
         stay.setCheckinAt(java.time.LocalDateTime.now());
         stayRepository.save(stay);
 
-        Room room = r.getRoom();
+        Room room = primaryRoom(r);
         if (room != null) {
             room.setStatus(RoomStatus.OCCUPIED);
             roomRepository.save(room);
@@ -295,7 +321,7 @@ public class ReservationService {
         r.setStatus(ReservationStatus.CHECKED_OUT);
         reservationRepository.save(r);
 
-        Room room = r.getRoom();
+        Room room = primaryRoom(r);
         if (room != null) {
             room.setStatus(RoomStatus.CLEANING);
             roomRepository.save(room);
@@ -338,5 +364,16 @@ public class ReservationService {
             .map(s -> s.getName())
             .filter(Objects::nonNull)
             .collect(Collectors.joining(", "));
+    }
+
+    private Room primaryRoom(Reservation reservation) {
+        if (reservation == null) {
+            throw new IllegalArgumentException("Reservasi tidak ditemukan.");
+        }
+        Room room = reservation.primaryRoom();
+        if (room == null) {
+            throw new IllegalStateException("Reservasi belum memiliki kamar terasosiasi.");
+        }
+        return room;
     }
 }
