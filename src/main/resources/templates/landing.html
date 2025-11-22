@@ -1,21 +1,24 @@
-<!doctype html>
-<html lang="id">
-<head>
+<html lang="id"><head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Beranda | SINIO Hotel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-QWTKZyjpPEjISv5WaRU5jos6h3XMZlZK3sPZ6Y9e1wM6M7amvy1zW+8ABSTB8v1G" crossorigin="anonymous">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Playfair+Display:wght@600;700&amp;display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU5jos6h3XMZlZK3sPZ6Y9e1wM6M7amvy1zW+8ABSTB8v1G" crossorigin="anonymous">
   <style>
     :root{
       --charcoal: #1f1b1b;
       --stone: #f5efe7;
       --beige: #ede4d3;
+      --sand: #fdfbf7;
       --gold: #c99b63;
       --gold-strong: #b6823e;
+      --tosca-900: #0b3535;
+      --tosca-800: #0f4a49;
+      --tosca-700: #136260;
+      --tosca-500: #1c8a86;
+      --tosca-100: #e5f3f2;
       --muted: #6b6661;
       --glass-bg: rgba(255,255,255,.22);
       --glass-stroke: rgba(255,255,255,.45);
@@ -24,7 +27,7 @@
     html{
       width:100%; height:100%; margin:0;
       overflow-x:hidden;
-      overflow-y:auto; /* scroll hanya di body */
+      overflow-y:auto;
     }
     body{
       width:100%; min-height:100vh; margin:0;
@@ -32,53 +35,81 @@
       overscroll-behavior-y: contain;
       font-family: "Inter", system-ui, -apple-system, sans-serif;
       color: var(--charcoal);
+      line-height: 1.6;
       background:
-        linear-gradient(180deg, #fdfbf7 0%, #f2ebe2 70%, #fdfbf7 100%);
+        radial-gradient(circle at 18% 16%, rgba(28,138,134,.08), transparent 42%),
+        radial-gradient(circle at 82% 8%, rgba(201,155,99,.08), transparent 38%),
+        linear-gradient(180deg, #fdfbf7 0%, #f3ece3 55%, #f0e5d8 100%);
+      background-attachment: fixed;
+      background-repeat: no-repeat;
+      background-size: 100% 100%;
     }
-    main.container{ padding-bottom: 72px; }
-    .navbar-glass{ backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background: rgba(255,255,255,.7); border-bottom: 1px solid var(--glass-stroke); }
-    .navbar-brand{ color: var(--charcoal); font-weight:700; font-family: "Playfair Display", serif; letter-spacing:.5px; }
+    main.container{ padding-bottom: 88px; }
+    h1, h2, h3, h4, h5{ font-family: "Playfair Display", serif; }
+    .page-shell{ position:relative; }
+    .navbar-glass{
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      background: rgba(255,255,255,.8);
+      border-bottom: 1px solid var(--glass-stroke);
+      box-shadow: 0 10px 28px rgba(0,0,0,.06);
+    }
+    .navbar-brand{
+      color: var(--tosca-800);
+      font-weight:700; letter-spacing:.5px;
+    }
+    .navbar-brand:hover{ color: var(--tosca-700); }
     .navbar-glass .nav-link{ color: var(--charcoal); font-weight:600; }
-    .navbar-glass .nav-link:hover,.navbar-glass .nav-link:focus{ color: var(--gold-strong); }
-    .btn-tosca{ background: var(--gold); color:#fff !important; border-color: var(--gold); }
-    .btn-tosca:hover{ background: var(--gold-strong); border-color: var(--gold-strong); }
-    .btn-outline-tosca{ color: var(--gold-strong); border-color: var(--gold); background: transparent; }
-    .btn-outline-tosca:hover{ background: var(--gold); color:#fff !important; }
-    .text-tosca{ color: var(--charcoal); }
+    .navbar-glass .nav-link:hover,.navbar-glass .nav-link:focus{ color: var(--tosca-700); }
+    .navbar .nav-link{ letter-spacing:.2px; font-weight:700; }
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:11px 16px; border-radius:12px; font-weight:700;
+      text-decoration:none; border:1px solid transparent; cursor:pointer;
+      transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+      gap:8px;
+    }
+    .btn:hover{ transform: translateY(-1px); box-shadow:0 10px 20px rgba(0,0,0,.08); }
+    .btn-tosca{ background: var(--tosca-700); color:#fff !important; border-color: var(--tosca-700); }
+    .btn-tosca:hover{ background: var(--tosca-800); border-color: var(--tosca-800); }
+    .btn-outline-tosca{ color: var(--tosca-800); border-color: var(--tosca-700); background: transparent; }
+    .btn-outline-tosca:hover{ background: var(--tosca-700); color:#fff !important; }
+    .btn-outline-tosca.btn-hero-alt{
+      color:#fff !important;
+      border-color: rgba(255,255,255,.78);
+    }
+    .btn-outline-tosca.btn-hero-alt:hover{
+      background: rgba(255,255,255,.14);
+      border-color: rgba(255,255,255,.94);
+      color:#fff !important;
+    }
     .badge-soft{
+      display:inline-flex; align-items:center; gap:8px;
       background: rgba(201,155,99,.14);
       color: var(--gold-strong);
       border-radius: 999px;
-      padding: 10px 16px;
+      padding: 10px 12px;
       font-weight: 600;
     }
-    .stats-grid{
-      display:grid;
-      grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
-      gap:14px;
-      margin:18px 0 6px;
+    .badge-soft .stars{ display:inline-flex; letter-spacing:2px; padding-right:0; }
+    .pill{
+      display:inline-flex; align-items:center; gap:6px;
+      background: rgba(255,255,255,.25);
+      color:#fff; border:1px solid rgba(255,255,255,.2);
+      border-radius:999px; padding:8px 12px; font-weight:600;
     }
-    .stat-card{
-      background: rgba(255,255,255,.82);
-      border:1px solid rgba(17,154,141,.12);
-      border-radius:14px;
-      padding:12px 14px;
-      box-shadow:0 8px 24px rgba(0,0,0,.05);
-    }
-    .stat-card .value{ font-size:24px; font-weight:800; color: var(--tosca-800); }
-    .stat-card .label{ margin:0; color:#4b5563; font-size:14px; }
     .hero{
-      padding: 80px 0;
+      padding: 72px 68px;
       position: relative;
       color: #fff;
       overflow: hidden;
-      border-radius: 18px;
-      margin-top: 18px;
+      border-radius: 22px;
+      margin-top: 22px;
+      box-shadow: 0 26px 60px rgba(0,0,0,.16);
     }
     .hero::before{
       content:"";
       position:absolute; inset:0;
-      background: linear-gradient(120deg, rgba(31,27,27,.7) 0%, rgba(31,27,27,.4) 50%, rgba(31,27,27,.2) 100%);
+      background: linear-gradient(120deg, rgba(15,74,73,.85) 0%, rgba(18,98,96,.7) 55%, rgba(201,155,99,.55) 100%);
       z-index:1;
     }
     .hero::after{
@@ -87,11 +118,50 @@
       background: url('/images/landing-hero.jpg') center/cover no-repeat;
       z-index:0;
       transform: scale(1.02);
+      opacity:.55;
     }
     .hero .content{ position: relative; z-index:2; }
-    .hero-title{ color: #fff; font-family: "Playfair Display", serif; }
+    .hero-inner{ position:relative; z-index:2; display:grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, .9fr); gap:30px; align-items:center; }
+    .hero-title{ color: #fff; font-size: 44px; line-height:1.1; }
+    .hero-lead{ color: rgba(255,255,255,.9); max-width: 760px; }
+    .hero-meta{ display:grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:18px; }
+    .hero-meta .stat-card{
+      background: rgba(255,255,255,.16);
+      border:1px solid rgba(255,255,255,.24);
+      box-shadow:none;
+      color:#fff;
+    }
+    .hero-meta .label{ color: rgba(255,255,255,.82); }
+    .chip-row{ display:flex; flex-wrap:wrap; gap:8px; }
+    .chip-row .chip{
+      background: #fff; color: var(--tosca-800);
+      border:1px solid rgba(17,154,141,.12);
+      border-radius:12px; padding:8px 12px; font-weight:600;
+    }
+    .section-header{ display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:16px; }
+    .section-header .eyebrow{ letter-spacing:.5px; text-transform:uppercase; font-weight:700; color: var(--tosca-800); font-size:13px; margin-bottom:6px; }
+    .section-header p{ margin:0; color:#4b5563; }
+    .divider{
+      width: 100%; height:1px; background: rgba(17,154,141,.12);
+      margin: 26px 0 14px;
+    }
+    .stats-grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
+      gap:14px;
+      margin:18px 0 6px;
+    }
+    .stat-card{
+      background: rgba(255,255,255,.9);
+      border:1px solid rgba(17,154,141,.12);
+      border-radius:14px;
+      padding:12px 14px;
+      box-shadow:0 8px 24px rgba(0,0,0,.05);
+    }
+    .stat-card .value{ font-size:24px; font-weight:800; color: var(--tosca-800); }
+    .stat-card .label{ margin:0; color:#4b5563; font-size:14px; }
     /* Minimal layout fallback when CDN fails */
-    .container{ width: min(1200px, 100% - 32px); margin: 0 auto; }
+    .container{ width: min(1385px, 100% - 32px); margin: 0 auto; }
     .row{ display:flex; flex-wrap:wrap; margin:-8px; }
     .row.g-3{ margin:-12px; }
     .row.g-4{ margin:-16px; }
@@ -108,6 +178,11 @@
     }
     @media (min-width: 992px){
       .col-lg-6{ flex:0 0 50%; }
+      .hero-inner{ grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr); }
+    }
+    @media (max-width: 767px){
+      .hero{ padding: 56px 28px; }
+      .hero-inner{ grid-template-columns: 1fr; }
     }
     .g-3 > [class*="col-"]{ padding:12px; }
     .g-4 > [class*="col-"]{ padding:16px; }
@@ -138,17 +213,6 @@
     .border-0{ border:0; }
     .border{ border:1px solid rgba(17,154,141,.14); }
     .w-100{ width:100%; }
-    .btn{
-      display:inline-flex; align-items:center; justify-content:center;
-      padding:10px 16px; border-radius:12px; font-weight:700;
-      text-decoration:none; border:1px solid transparent; cursor:pointer;
-      transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
-      gap:8px;
-    }
-    .btn:hover{ transform: translateY(-1px); box-shadow:0 10px 20px rgba(0,0,0,.08); }
-    .btn-tosca{ background: var(--tosca-500); color:#fff !important; border-color: var(--tosca-500); }
-    .btn-outline-tosca{ color: var(--tosca-700); border-color: var(--tosca-500); background: transparent; }
-    .btn-outline-tosca:hover{ background: var(--tosca-500); color:#fff !important; }
     a{ color: var(--tosca-800); text-decoration: none; }
     a:hover{ text-decoration: underline; }
     .room-card{
@@ -157,226 +221,472 @@
       box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
       transition: transform .2s ease, box-shadow .2s ease;
       background:#fff;
+      height:100%;
     }
     .room-card:hover{ transform: translateY(-4px); box-shadow:0 16px 32px rgba(0,0,0,.12); }
-    .room-card img{ object-fit: cover; height: 180px; }
+    .room-card img{ object-fit: cover; height: 200px; }
+    .room-card .card-body{ padding:18px 18px 20px; }
+    .room-card .card-title{ font-family:"Playfair Display", serif; font-size:1.2rem; letter-spacing:.1px; }
+    .room-card .text-uppercase.small{ letter-spacing:.5px; color: var(--tosca-800); font-weight:700; }
+    .room-card p, .room-card li{ line-height:1.5; }
+    .room-card ul{ padding-left:18px; margin-bottom:12px; }
     .feature-icon{
       width: 42px; height: 42px;
       border-radius: 12px;
-      background: rgba(201,155,99,.14);
+      background: linear-gradient(135deg, rgba(201,155,99,.18), rgba(28,138,134,.18));
       display: inline-flex; align-items: center; justify-content: center;
-      color: var(--gold-strong); font-weight: 700;
+      color: var(--tosca-800); font-weight: 800;
+      letter-spacing:.3px;
     }
     .perk-card{
       transition: transform .2s ease, box-shadow .2s ease;
+      border:1px solid rgba(17,154,141,.12);
+      background:#fff;
     }
     .perk-card:hover{ transform: translateY(-2px); box-shadow:0 12px 30px rgba(0,0,0,.08); }
+    .facility-grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap:18px;
+      row-gap: 48px;
+      grid-auto-rows:1fr;
+      max-width:1900px;
+      margin:0 auto;
+    }
+    @media (min-width: 992px){
+      .facility-grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 991px) and (min-width: 600px){
+      .facility-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 599px){
+      .facility-grid{ grid-template-columns: 1fr; }
+    }
+    .facility-card{
+      border:1px solid rgba(17,154,141,.08);
+      background: #fff;
+      border-radius:16px;
+      padding:14px;
+      box-shadow:0 10px 30px rgba(0,0,0,.06);
+      display:grid;
+      gap:6px;
+      min-height:160px;
+      height:100%;
+    }
+    .facility-card h6{
+      margin:0;
+      font-weight:700;
+      letter-spacing:.2px;
+      font-size:1rem;
+      color: var(--tosca-800);
+    }
+    .facility-card p{
+      margin:0;
+      color:#4b5563;
+      line-height:1.5;
+    }
+    .facility-card .meta{
+      font-size:20px;
+      font-weight:800;
+      letter-spacing:.8px;
+      text-transform:uppercase;
+      color: var(--gold-strong);
+    }
+    .cta-band{
+      background: radial-gradient(circle at 20% 20%, rgba(201,155,99,.12), transparent 42%),
+                  radial-gradient(circle at 80% 0%, rgba(28,138,134,.12), transparent 38%),
+                  linear-gradient(135deg, #fefcf9, #f1e6d8 60%, #fefaf4);
+      border:1px solid rgba(201,155,99,.22);
+      border-radius:18px;
+      padding: 18px;
+    }
+    .cta-body{ padding: 14px; }
+    @media(min-width:768px){ .cta-body{ padding: 22px 24px; } }
+    .cta-steps{ display:flex; flex-wrap:wrap; gap:10px; }
+    .cta-steps .pill{
+      background: rgba(28,138,134,.08);
+      color: var(--tosca-800);
+      border:1px solid rgba(28,138,134,.16);
+      padding:10px 14px;
+      font-weight:700;
+      border-radius: 999px;
+    }
+    .cta-actions{ display:flex; flex-direction:column; gap:8px; }
+    @media(min-width:576px){
+      .cta-actions{ flex-direction:row; }
+    }
+    .cta-panel{
+      background:#fff;
+      border-radius:16px;
+      box-shadow:0 14px 32px rgba(0,0,0,.08);
+      border:1px solid rgba(17,154,141,.08);
+      padding:16px;
+      display:grid; gap:12px;
+    }
+    .cta-buttons{
+      display:flex; flex-wrap:wrap; gap:10px;
+    }
+    .cta-buttons .btn{
+      padding:12px 18px;
+      border-radius:12px;
+      min-width:170px;
+    }
+    .assist-row{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px; padding:12px 14px;
+      background: rgba(28,138,134,.08);
+      border:1px solid rgba(28,138,134,.12);
+      border-radius:12px;
+      flex-wrap:wrap;
+    }
+    .assist-row p{ margin:0; }
+    /* Ensure small cards/buttons don’t overflow */
+    .card .btn.w-100{
+      width:100%;
+      display:block;
+      max-width:280px;
+      margin:0 auto;
+    }
     footer{ background:#fff; }
+    .navbar-lite{
+      background: rgba(255,255,255,.88);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid rgba(0,0,0,.05);
+      position:sticky; top:0; z-index:20;
+    }
+    .navbar-lite .nav-link{ color: var(--charcoal); font-weight:600; }
+    .navbar-lite .nav-link:hover{ color: var(--tosca-700); }
+    .nav-wide{ width: min(1400px, 100% - 16px); }
+    .nav-shell{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:16px; flex-wrap:wrap;
+    }
+    .nav-link-group{
+      display:flex; align-items:center; flex-wrap:wrap;
+      gap: 18px;
+    }
+    .nav-actions{ display:flex; align-items:center; gap:10px; }
+    .btn-compact{ padding:9px 12px; border-radius:10px; }
+    .btn-ghost-tosca{
+      background: transparent;
+      color: var(--tosca-800) !important;
+      border-color: transparent;
+      box-shadow:none;
+    }
+    .btn-ghost-tosca:hover{
+      background: rgba(28,138,134,.08);
+      color: var(--tosca-900) !important;
+      border-color: transparent;
+    }
+    .icon-wa{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:16px; height:16px; border-radius:50%;
+      background:#25d366; color:#fff; font-size:10px; font-weight:800;
+    }
+    .icon-wa{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:16px; height:16px; border-radius:50%;
+      background:#25d366; color:#fff; font-size:10px; font-weight:800;
+    }
+    @media(min-width: 992px){ .nav-shell{ flex-wrap:nowrap; } }
+    /* Personal services */
+    .personal-section{ position:relative; }
+    .personal-panel{
+      background: radial-gradient(circle at 12% 20%, rgba(28,138,134,.08), transparent 38%),
+                  radial-gradient(circle at 88% 12%, rgba(201,155,99,.12), transparent 40%),
+                  #fff;
+      border:1px solid rgba(17,154,141,.12);
+      box-shadow:0 16px 40px rgba(0,0,0,.08);
+      border-radius:18px;
+      padding:22px 20px;
+    }
+    @media(min-width:768px){ .personal-panel{ padding:30px 28px; } }
+    .service-header{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; flex-wrap:wrap;
+    }
+    .service-badge{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 14px; border-radius:999px;
+      background: rgba(28,138,134,.12);
+      color: var(--tosca-800); font-weight:700; letter-spacing:.2px;
+    }
+    .service-kicker{
+      font-family:"Playfair Display", serif;
+      font-size:18px; font-weight:700; color: var(--gold-strong);
+    }
+    .personal-title{
+      font-family:"Playfair Display", serif;
+      font-size:28px; line-height:1.2; margin:10px 0 6px;
+      letter-spacing:.2px;
+    }
+    .personal-lead{ color:#475569; margin-bottom:16px; }
+    .service-grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+      gap:12px;
+    }
+    .service-card{
+      background:#fdfbf7;
+      border:1px solid rgba(17,154,141,.14);
+      border-radius:14px;
+      padding:14px;
+      display:grid; gap:6px;
+      box-shadow:0 10px 22px rgba(0,0,0,.05);
+    }
+    .service-label{
+      font-size:12px; letter-spacing:.4px; text-transform:uppercase;
+      color: var(--tosca-800); font-weight:800;
+    }
+    .service-card h5{
+      margin:0; font-family:"Playfair Display", serif;
+      font-size:18px; color: var(--charcoal);
+    }
+    .service-card p{ margin:0; color:#4b5563; line-height:1.5; }
   </style>
 </head>
-<body>
-  <nav class="navbar navbar-expand-lg navbar-glass shadow-sm" style="position:sticky; top:0; z-index:10;">
-    <div class="container d-flex align-items-center justify-content-between flex-wrap">
-      <div class="d-flex align-items-center gap-2">
-        <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/" style="text-decoration:none;">
-          <img src="/images/logo-sinio.svg" alt="SINIO" width="32" height="32">
-          <strong>SINIO Hotel</strong>
-        </a>
-      </div>
-      <div class="d-flex align-items-center gap-3 flex-wrap">
-        <div class="d-flex gap-3">
-          <a class="nav-link" href="#rooms">Kamar</a>
-          <a class="nav-link" href="#fasilitas">Fasilitas</a>
-          <a class="nav-link" href="#pesan">Reservasi</a>
+<body data-new-gr-c-s-check-loaded="14.1129.0" data-gr-ext-installed="">
+  <nav class="navbar navbar-expand-lg navbar-lite">
+    <div class="container nav-wide nav-shell">
+      <a class="navbaminr-brand fw-bold m-0" href="/">SINIO</a>
+      <div class="nav-link-group ms-auto">
+        <a class="nav-link px-0" href="#rooms">Kamar</a>
+        <a class="nav-link px-0" href="#fasilitas">Fasilitas</a>
+        <a class="nav-link px-0" href="#pesan">Reservasi</a>
+        <div class="nav-actions ms-lg-3">
+          <a class="btn btn-ghost-tosca btn-compact" href="/login">Masuk / Daftar</a>
         </div>
-        <a class="btn btn-outline-tosca" href="/login">Login / Daftar</a>
       </div>
     </div>
   </nav>
-
   <main class="container">
     <section class="hero">
-      <div class="content">
-        <div class="badge-soft mb-3 d-inline-flex align-items-center gap-2">
-          <span>Luxury Stay</span>
-          <span style="color:#ffd166;">★★★★★</span>
-        </div>
-        <h1 class="display-5 fw-bold hero-title mb-3">Eksklusif, modern, dan ramah.</h1>
-        <p class="lead mb-4" style="max-width: 720px;">SINIO menghadirkan pengalaman hotel mewah di jantung kota: kamar luas, layanan personal, dan fasilitas terbaik untuk setiap perjalanan Anda.</p>
-        <div class="d-flex flex-wrap gap-2">
-          <a class="btn btn-tosca" href="#rooms">Lihat kamar & suite</a>
-          <a class="btn btn-outline-tosca" href="/login">Reservasi</a>
-          <span class="d-inline-flex align-items-center gap-2" style="color:#fff; font-weight:600;">
-            <span style="font-size: 18px;">4.9★</span>
-            <small>+3.5K ulasan</small>
-          </span>
+      <div class="hero-inner">
+        <div class="content">
+          <div class="badge-soft mb-3 d-inline-flex align-items-center gap-2">
+            <span>Luxury Stay</span>
+            <span style="color:#ffd166;"> ★★★★★</span>
+          </div>
+          <h1 class="hero-title fw-bold mb-3">Eksklusif, modern, dan ramah.</h1>
+          <p class="hero-lead lead mb-3">SINIO menghadirkan pengalaman hotel mewah di jantung kota: kamar luas, layanan personal, dan fasilitas terbaik untuk setiap perjalanan Anda.</p>
+          <div class="chip-row mb-3">
+            <span class="pill">Reservasi 24/7</span>
+            <span class="pill">Concierge 24/7</span>
+            <span class="pill">Wi-Fi premium</span>
+          </div>
+          <div class="d-flex flex-wrap gap-2 mb-2">
+            <a class="btn btn-tosca" href="#rooms">Lihat kamar &amp; suite</a>
+            <a class="btn btn-outline-tosca btn-hero-alt" href="/login">Reservasi</a>
+            <span class="d-inline-flex align-items-center gap-2" style="color:#fff; font-weight:600;">
+              <span style="font-size: 18px;">4.9★</span>
+              <small>+3.5K ulasan</small>
+            </span>
+          </div>
+          <div class="hero-meta">
+            <div class="stat-card">
+              <div class="value">2025</div>
+              <p class="label mb-0">Tahun beroperasi</p>
+            </div>
+            <div class="stat-card">
+              <div class="value">6.4K</div>
+              <p class="label mb-0">Booking per tahun</p>
+            </div>
+            <div class="stat-card">
+              <div class="value">4.9★</div>
+              <p class="label mb-0">3.5K+ ulasan tamu</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="value">1970</div>
-        <p class="label mb-0">Tahun beroperasi</p>
-      </div>
-      <div class="stat-card">
-        <div class="value">6.4K</div>
-        <p class="label mb-0">Booking per tahun</p>
-      </div>
-      <div class="stat-card">
-        <div class="value">4.9★</div>
-        <p class="label mb-0">3.5K+ ulasan tamu</p>
-      </div>
-    </div>
-
     <section id="rooms" class="py-5">
-      <div class="d-flex flex-wrap justify-content-between align-items-end mb-3">
+      <div class="section-header">
         <div>
-          <h2 class="h3 fw-bold text-tosca mb-1" style="font-family:'Playfair Display', serif;">Koleksi kamar & suite</h2>
+          <div class="eyebrow">Pilihan utama</div>
+          <h2 class="h3 fw-bold text-tosca mb-1">Koleksi kamar &amp; suite</h2>
           <p class="text-secondary mb-0">Pilih ruang yang sesuai gaya perjalanan Anda.</p>
         </div>
         <a class="btn btn-outline-tosca" href="/guest/kamar">Lihat semua kamar</a>
       </div>
 
-      <div th:if="${hasRooms}" class="row g-3" th:with="images=${T(java.util.List).of('/images/landing-hero.jpg','/images/landing-suite.jpg','/images/landing-villa.jpg')}">
-        <div class="col-12 col-md-4" th:each="room, stat : ${featuredRooms}">
+      <div class="row g-3">
+        <div class="col-12 col-md-4">
           <div class="card room-card h-100 border-0">
-            <img th:src="${images[stat.index % images.size()]}" src="/images/landing-hero.jpg" class="w-100" alt="Kamar">
+            <img src="/images/landing-hero.jpg" class="w-100" alt="Kamar">
             <div class="card-body">
-              <p class="text-uppercase small text-secondary mb-1" th:text="${room.type != null ? room.type.displayName : 'Pilihan favorit'}">Deluxe King</p>
-              <h5 class="card-title mb-1" th:text="${room.number != null ? 'Kamar #' + room.number : 'Nomor privat'}">Kamar #201</h5>
-              <p class="fw-semibold text-tosca mb-2" th:text="${room.rate != null ? 'Mulai Rp ' + #numbers.formatDecimal(room.rate, 0, 'POINT', 0, 'COMMA') + ' / malam' : 'Tarif fleksibel'}">Mulai Rp 1.450.000 / malam</p>
+              <p class="text-uppercase small text-secondary mb-1">Deluxe King</p>
+              <h5 class="card-title mb-1">Kamar #A1</h5>
+              <p class="fw-semibold text-tosca mb-2">Mulai Rp 500.000 / malam</p>
               <ul class="list-unstyled text-secondary small mb-2 d-grid gap-1">
                 <li>King bed • Balkon atau lounge</li>
                 <li>Wi-Fi cepat • Sarapan tersedia</li>
               </ul>
-              <p class="text-secondary mb-0" th:text="${room.note != null ? room.note : 'Ranjang king, balkon luas, dan concierge 24 jam.'}">Ranjang king, balkon luas, dan concierge 24 jam.</p>
+              <p class="text-secondary mb-0">Kamar kelas atas dengan layanan yang mewah</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="card room-card h-100 border-0">
+            <img src="/images/landing-suite.jpg" class="w-100" alt="Kamar">
+            <div class="card-body">
+              <p class="text-uppercase small text-secondary mb-1">Deluxe King</p>
+              <h5 class="card-title mb-1">Kamar #A2</h5>
+              <p class="fw-semibold text-tosca mb-2">Mulai Rp 500.000 / malam</p>
+              <ul class="list-unstyled text-secondary small mb-2 d-grid gap-1">
+                <li>King bed • Balkon atau lounge</li>
+                <li>Wi-Fi cepat • Sarapan tersedia</li>
+              </ul>
+              <p class="text-secondary mb-0">Kamar kelas atas dengan layanan yang mewah</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="card room-card h-100 border-0">
+            <img src="/images/landing-villa.jpg" class="w-100" alt="Kamar">
+            <div class="card-body">
+              <p class="text-uppercase small text-secondary mb-1">Deluxe King</p>
+              <h5 class="card-title mb-1">Kamar #A3</h5>
+              <p class="fw-semibold text-tosca mb-2">Mulai Rp 500.000 / malam</p>
+              <ul class="list-unstyled text-secondary small mb-2 d-grid gap-1">
+                <li>King bed • Balkon atau lounge</li>
+                <li>Wi-Fi cepat • Sarapan tersedia</li>
+              </ul>
+              <p class="text-secondary mb-0">Kamar kelas atas dengan layanan yang mewah</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div th:if="${!hasRooms}" class="row g-3">
-        <div class="col-12 col-md-4" th:each="img,title,type,rate,desc : ${{
-          '/images/landing-hero.jpg','Panorama Suite','Suite Panorama','Rp 1.450.000 / malam','Pemandangan langit biru, lounge pribadi, dan ruang kerja nyaman.',
-          '/images/landing-suite.jpg','Signature Loft','Studio Loft','Rp 1.050.000 / malam','Desain dua tingkat, lampu ambient, dan pantry mini.',
-          '/images/landing-villa.jpg','Garden Villa','Villa','Rp 1.250.000 / malam','Teras privat, akses langsung ke taman, dan sofa daybed.'
-        }}">
-          <div class="card room-card h-100 border-0">
-            <img th:src="${img}" src="/images/landing-hero.jpg" class="w-100" alt="Kamar">
-            <div class="card-body">
-              <p class="text-uppercase small text-secondary mb-1" th:text="${type}">Suite Panorama</p>
-              <h5 class="card-title mb-1" th:text="${title}">Panorama Suite</h5>
-              <p class="fw-semibold text-tosca mb-2" th:text="${'Mulai ' + rate}">Mulai Rp 1.450.000 / malam</p>
-              <ul class="list-unstyled text-secondary small mb-2 d-grid gap-1">
-                <li>King bed • Balkon atau lounge</li>
-                <li>Wi-Fi cepat • Sarapan tersedia</li>
-              </ul>
-              <p class="text-secondary mb-0" th:text="${desc}">Pemandangan langit biru, lounge pribadi, dan ruang kerja nyaman.</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      
     </section>
 
-    <section id="fasilitas" class="py-5 bg-white rounded-4 shadow-sm px-4">
-      <div class="row align-items-center g-3 mb-3">
-        <div class="col-lg-8">
-          <h2 class="h3 fw-bold text-tosca mb-1" style="font-family:'Playfair Display', serif;">Fasilitas & kenyamanan</h2>
+    <section id="fasilitas" class="py-5 px-1">
+      <div class="section-header">
+        <div>
+          <div class="eyebrow">Kenyamanan</div>
+          <h2 class="h3 fw-bold text-tosca mb-1">Fasilitas &amp; kenyamanan</h2>
           <p class="text-secondary mb-0">Nikmati fasilitas modern yang dikurasi untuk setiap tamu.</p>
         </div>
       </div>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <div class="p-3 rounded-3 border h-100 perk-card">
-            <div class="feature-icon mb-2">Wi</div>
-            <h6 class="fw-bold mb-1">Wi-Fi cepat</h6>
-            <p class="text-secondary mb-0">Akses internet stabil di seluruh area hotel.</p>
+      <div class="facility-grid">
+        <div class="facility-card">
+          <div class="d-flex align-items-center gap-2">
+            <div class="feature-icon">WiFi</div>
+            <div class="meta">Konektivitas</div>
           </div>
+          <h6>Wi-Fi cepat</h6>
+          <p>Akses internet stabil di seluruh area hotel.</p>
         </div>
-        <div class="col-md-4">
-          <div class="p-3 rounded-3 border h-100 perk-card">
-            <div class="feature-icon mb-2">Sp</div>
-            <h6 class="fw-bold mb-1">Spa & sauna</h6>
-            <p class="text-secondary mb-0">Ritual relaksasi, ruang uap, dan jacuzzi hangat.</p>
+        <div class="facility-card">
+          <div class="d-flex align-items-center gap-2">
+            <div class="feature-icon">Spa</div>
+            <div class="meta">Relaksasi</div>
           </div>
+          <h6>Spa &amp; sauna</h6>
+          <p>Ritual relaksasi, ruang uap, dan jacuzzi hangat.</p>
         </div>
-        <div class="col-md-4">
-          <div class="p-3 rounded-3 border h-100 perk-card">
-            <div class="feature-icon mb-2">Fn</div>
-            <h6 class="fw-bold mb-1">Fitness & kolam</h6>
-            <p class="text-secondary mb-0">Gym lengkap dan kolam renang indoor berkelas.</p>
+        <div class="facility-card">
+          <div class="d-flex align-items-center gap-2">
+            <div class="feature-icon">Gym</div>
+            <div class="meta">Vitalitas</div>
           </div>
+          <h6>Fitness &amp; kolam</h6>
+          <p>Gym lengkap dan kolam renang indoor berkelas.</p>
         </div>
-        <div class="col-md-4">
-          <div class="p-3 rounded-3 border h-100 perk-card">
-            <div class="feature-icon mb-2">Rb</div>
-            <h6 class="fw-bold mb-1">Restoran & lounge</h6>
-            <p class="text-secondary mb-0">Menu kurasi chef, cocktail bar, dan high-tea sore.</p>
+        <div class="facility-card">
+          <div class="d-flex align-items-center gap-2">
+            <div class="feature-icon">Dine</div>
+            <div class="meta">Kuliner</div>
           </div>
+          <h6>Restoran &amp; lounge</h6>
+          <p>Menu kurasi chef, cocktail bar, dan high-tea sore.</p>
         </div>
-        <div class="col-md-4">
-          <div class="p-3 rounded-3 border h-100 perk-card">
-            <div class="feature-icon mb-2">Pk</div>
-            <h6 class="fw-bold mb-1">Parkir & antar-jemput</h6>
-            <p class="text-secondary mb-0">Parkir luas, valet, dan layanan bandara.</p>
+        <div class="facility-card">
+          <div class="d-flex align-items-center gap-2">
+            <div class="feature-icon">Parkir</div>
+            <div class="meta">Mobilitas</div>
           </div>
+          <h6>Parkir luas</h6>
+          <p>Area parkir aman dengan akses mudah ke lobby.</p>
         </div>
-        <div class="col-md-4">
-          <div class="p-3 rounded-3 border h-100 perk-card">
-            <div class="feature-icon mb-2">24</div>
-            <h6 class="fw-bold mb-1">Layanan 24/7</h6>
-            <p class="text-secondary mb-0">Concierge, in-room dining, dan housekeeping.</p>
+        <div class="facility-card">
+          <div class="d-flex align-items-center gap-2">
+            <div class="feature-icon">24/7</div>
+            <div class="meta">Siaga</div>
           </div>
+          <h6>Layanan 24/7</h6>
+          <p>Concierge, in-room dining, dan housekeeping.</p>
         </div>
       </div>
     </section>
 
-    <section class="py-5">
-      <div class="row g-3 align-items-center">
-        <div class="col-md-7">
-          <h3 class="h4 fw-bold text-tosca mb-2" style="font-family:'Playfair Display', serif;">Lebih dari sekadar menginap</h3>
-          <p class="text-secondary">Kami siapkan pengalaman lengkap: penjemputan bandara, tur kota privat, sampai rekomendasi kuliner lokal yang dikurasi.</p>
-          <div class="d-flex flex-wrap gap-2">
-            <span class="badge text-bg-light border">Penjemputan & antar bandara</span>
-            <span class="badge text-bg-light border">Tur singkat ke spot ikonik</span>
-            <span class="badge text-bg-light border">Rekomendasi restoran</span>
-            <span class="badge text-bg-light border">Late check-out* </span>
-          </div>
+    <section class="py-5 personal-section">
+      <div class="personal-panel">
+        <div class="service-header">
+          <span class="service-badge">Layanan personal</span>
+          <span class="service-kicker">Pendamping pribadi tiap momen</span>
         </div>
-        <div class="col-md-5">
-          <div class="card border-0 shadow-sm">
-            <div class="card-body">
-              <h6 class="fw-bold mb-2">Pemesan baru?</h6>
-              <p class="text-secondary mb-3">Hubungi concierge kami untuk rencana perjalanan khusus.</p>
-              <a class="btn btn-tosca w-100" href="/login">Masuk / Daftar</a>
-            </div>
+        <h3 class="personal-title">Dipandu concierge, disesuaikan untuk Anda</h3>
+        <p class="personal-lead">Nikmati tim concierge yang menyiapkan detail perjalanan, dari mood kamar hingga agenda makan malam, dengan sentuhan cepat dan hangat.</p>
+        <div class="service-grid">
+          <div class="service-card">
+            <span class="service-label">24/7</span>
+            <h5>Butler digital</h5>
+            <p>Chat langsung untuk permintaan kamar, snack tengah malam, atau housekeeping ekspres.</p>
+          </div>
+          <div class="service-card">
+            <span class="service-label">Signature</span>
+            <h5>Pengaturan momen</h5>
+            <p>Setup birthday, anniversary, atau dekor kamar tematik lengkap dengan playlist favorit.</p>
+          </div>
+          <div class="service-card">
+            <span class="service-label">Dining</span>
+            <h5>Kurasi resto &amp; lounge</h5>
+            <p>Rekomendasi meja terbaik, reservasi otomatis, sampai pairing wine untuk makan malam.</p>
+          </div>
+          <div class="service-card">
+            <span class="service-label">Explore</span>
+            <h5>Panduan kota cepat</h5>
+            <p>Rangkuman spot wajib dan hidden gems yang disesuaikan minat: seni, belanja, atau kuliner lokal.</p>
           </div>
         </div>
       </div>
     </section>
 
     <section id="pesan" class="py-5">
-      <div class="card border-0 shadow-sm" style="background: linear-gradient(120deg, #fefcf9, #f1e6d8);">
-        <div class="card-body d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
-          <div>
-            <h4 class="fw-bold text-tosca mb-1" style="font-family:'Playfair Display', serif;">Siap memesan atau ingin bertanya dulu?</h4>
-            <p class="text-secondary mb-0">Mulai reservasi dalam hitungan detik atau masuk untuk mengelola pesanan.</p>
+      <div class="card border-0 shadow-sm cta-band">
+        <div class="cta-body">
+          <div class="row align-items-start g-4">
+            <div class="col-lg-7">
+              <div class="eyebrow mb-1">Reservasi mudah</div>
+              <h4 class="fw-bold text-tosca mb-2" style="font-family:'Playfair Display', serif;">Siap memesan atau perlu tanya dulu?</h4>
+              <p class="text-secondary mb-3">Mulai reservasi hanya dalam tiga langkah singkat, atau masuk untuk melihat pesanan aktif.</p>
+              <div class="cta-steps">
+                <span class="pill">1. Pilih tanggal &amp; kamar</span>
+                <span class="pill">2. Tambah preferensi</span>
+                <span class="pill">3. Konfirmasi &amp; bayar</span>
+              </div>
+            </div>
           </div>
-          <div class="d-flex flex-column flex-sm-row gap-2">
-            <a class="btn btn-tosca" href="/login">Masuk / Daftar</a>
-            <a class="btn btn-outline-tosca" href="/guest/kamar">Jelajahi semua kamar</a>
-          </div>
+        </div>
+      </div>
+      <div class="assist-row mt-3">
+        <p class="mb-0 fw-semibold text-secondary">Butuh bantuan cepat? Hubungi reservation desk kami.</p>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <a class="btn btn-outline-tosca btn-compact" href="tel:+6283114786919">Telp +62 831 1478 6919</a>
+          <a class="btn btn-tosca btn-compact" href="https://wa.me/6283114786919" target="_blank" rel="noopener">Chat WhatsApp</a>
+          <a class="btn btn-outline-tosca btn-compact" href="mailto:helenakusumawardhani@gmail.com">Email reservasi</a>
         </div>
       </div>
     </section>
   </main>
 
   <footer class="py-4 text-center border-top bg-white">
-    <small class="text-secondary">SINIO Hotel | Hospitality crafted for you.</small>
+    <small class="text-secondary">SINIO Hotel | Thoughtful stays, made personal.</small>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-          integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eH/ZI17+Br" crossorigin="anonymous"></script>
-</body>
-</html>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eH/ZI17+Br" crossorigin="anonymous"></script>
+
+
+</body><grammarly-desktop-integration data-grammarly-shadow-root="true"></grammarly-desktop-integration></html>
