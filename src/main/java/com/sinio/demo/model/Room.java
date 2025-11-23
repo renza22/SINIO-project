@@ -51,7 +51,7 @@ public class Room {
         mappedBy = "room",
         cascade = CascadeType.ALL,
         orphanRemoval = true,
-        fetch = FetchType.EAGER
+        fetch = FetchType.LAZY
     )
     @OrderBy("sortOrder ASC, id ASC")
     private List<RoomAmenity> amenities = new ArrayList<>();
@@ -60,7 +60,7 @@ public class Room {
         mappedBy = "room",
         cascade = CascadeType.ALL,
         orphanRemoval = true,
-        fetch = FetchType.EAGER
+        fetch = FetchType.LAZY
     )
     @OrderBy("sortOrder ASC, id ASC")
     private List<RoomServiceOption> serviceOptions = new ArrayList<>();

@@ -9,6 +9,7 @@ import com.sinio.demo.dto.LoginRequest;
 import com.sinio.demo.dto.RegisterRequest;
 import com.sinio.demo.dto.RoomRequest;
 import com.sinio.demo.dto.ReservationRequest;
+import com.sinio.demo.dto.RoomSummaryView;
 import com.sinio.demo.model.Room;
 import com.sinio.demo.model.User;
 import com.sinio.demo.model.UserRole;
@@ -19,6 +20,7 @@ import com.sinio.demo.service.ReservationService;
 import com.sinio.demo.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
@@ -50,8 +53,7 @@ public class PageController {
 
     @GetMapping("/")
     public String landing(Model model) {
-        List<Room> rooms = roomService.findAllSorted();
-        List<Room> featured = rooms.stream().limit(3).toList();
+        List<RoomSummaryView> featured = roomService.findFeaturedSummaries(3);
         model.addAttribute("featuredRooms", featured);
         model.addAttribute("hasRooms", !featured.isEmpty());
         return "landing";
@@ -164,14 +166,25 @@ public class PageController {
 
     // ---- Guest: browse rooms ----
     @GetMapping("/guest/kamar")
-    public String guestBrowseRooms(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+    public String guestBrowseRooms(
+        HttpSession session,
+        RedirectAttributes redirectAttributes,
+        Model model,
+        @RequestParam(name = "page", defaultValue = "0") int page,
+        @RequestParam(name = "size", defaultValue = "12") int size
+    ) {
         String redirect = guardRole(session, redirectAttributes, UserRole.TAMU);
         if (redirect != null) {
             return redirect;
         }
         populateCommonModel(session, model);
-        List<Room> rooms = roomService.findAllSorted();
-        model.addAttribute("rooms", rooms);
+        Page<RoomSummaryView> roomsPage = roomService.findGuestSummaries(page, size);
+        model.addAttribute("rooms", roomsPage.getContent());
+        model.addAttribute("page", roomsPage.getNumber());
+        model.addAttribute("pageSize", roomsPage.getSize());
+        model.addAttribute("totalPages", roomsPage.getTotalPages());
+        model.addAttribute("hasPrev", roomsPage.hasPrevious());
+        model.addAttribute("hasNext", roomsPage.hasNext());
         model.addAttribute("roomTypes", roomService.getRoomTypes());
         return "guest_kamar";
     }

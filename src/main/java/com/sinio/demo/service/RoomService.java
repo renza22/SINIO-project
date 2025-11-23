@@ -1,6 +1,7 @@
 package com.sinio.demo.service;
 
 import com.sinio.demo.dto.RoomRequest;
+import com.sinio.demo.dto.RoomSummaryView;
 import com.sinio.demo.model.Room;
 import com.sinio.demo.model.RoomAmenity;
 import com.sinio.demo.model.RoomServiceOption;
@@ -10,6 +11,10 @@ import com.sinio.demo.repository.FacilityRepository;
 import com.sinio.demo.repository.RoomFacilityRepository;
 import com.sinio.demo.repository.RoomRepository;
 import com.sinio.demo.repository.RoomTypeEntityRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -52,10 +57,26 @@ public class RoomService {
     }
 
     public List<Room> findAllSorted() {
-        return roomRepository.findAll()
-            .stream()
-            .sorted(Comparator.comparing(Room::getNumber, String.CASE_INSENSITIVE_ORDER))
-            .collect(Collectors.toList());
+        return roomRepository.findAll(Sort.by(Sort.Order.by("number").ignoreCase()));
+    }
+
+    public List<RoomSummaryView> findGuestSummaries() {
+        return roomRepository.findAllSummaries();
+    }
+
+    public Page<RoomSummaryView> findGuestSummaries(int page, int size) {
+        int safeSize = Math.max(6, Math.min(size, 30)); // guard extremes to keep responses small
+        int safePage = Math.max(page, 0);
+        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Order.by("number").ignoreCase()));
+        return roomRepository.findSummaries(pageable);
+    }
+
+    public List<RoomSummaryView> findFeaturedSummaries(int limit) {
+        if (limit > 0) {
+            Pageable page = PageRequest.of(0, limit, Sort.by(Sort.Order.by("number").ignoreCase()));
+            return roomRepository.findSummaries(page).getContent();
+        }
+        return roomRepository.findAllSummaries();
     }
 
     public List<Map<String, Object>> buildStats(List<Room> rooms) {
@@ -260,14 +281,8 @@ public class RoomService {
         if (!facilities.isEmpty()) {
             return facilities;
         }
-        List<String> defaults = getDefaultAmenities(room.getType());
-        if (room.getId() == null) {
-            return defaults;
-        }
-        syncRoomFacilities(room, defaults);
-        room.setAmenities(toAmenities(defaults, room));
-        Room saved = roomRepository.save(room);
-        return resolveFacilityNames(saved);
+        // For view purposes, just return defaults without writing to DB.
+        return getDefaultAmenities(room.getType());
     }
 
     @Transactional
@@ -276,13 +291,8 @@ public class RoomService {
         if (!stored.isEmpty()) {
             return sortServices(stored);
         }
-        List<RoomServiceOption> defaults = defaultServiceOptions(room);
-        if (room.getId() == null) {
-            return sortServices(defaults);
-        }
-        room.setServiceOptions(defaults);
-        Room saved = roomRepository.save(room);
-        return sortServices(Optional.ofNullable(saved.getServiceOptions()).orElse(defaults));
+        // Fallback only for display; do not persist defaults during read.
+        return sortServices(defaultServiceOptions(room));
     }
 
     private List<RoomServiceOption> sortServices(List<RoomServiceOption> options) {

@@ -94,6 +94,13 @@
         </div>
       </div>
     </div>
+    <div class="col-12 d-flex align-items-center justify-content-between" th:if="${totalPages > 1}">
+      <div class="text-muted small" th:text="${'Halaman ' + (page + 1) + ' dari ' + totalPages}">Halaman 1 dari 3</div>
+      <div class="btn-group">
+        <a class="btn btn-outline-tosca btn-sm" th:classappend="${!hasPrev} ? ' disabled'" th:href="@{/guest/kamar(page=${page-1}, size=${pageSize})}">Sebelumnya</a>
+        <a class="btn btn-outline-tosca btn-sm" th:classappend="${!hasNext} ? ' disabled'" th:href="@{/guest/kamar(page=${page+1}, size=${pageSize})}">Berikutnya</a>
+      </div>
+    </div>
   </div>
 </main>
 
