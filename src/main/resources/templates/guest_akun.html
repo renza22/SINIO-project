@@ -8,13 +8,14 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <style>
     html, body{ max-width:100%; overflow-x:hidden; }
-    body{ overscroll-behavior-y: contain; }
+    body{ overscroll-behavior-y: contain; overflow-y:auto; }
     main, .container, .container-fluid{ overflow-x:hidden; }
     img, svg, video{ max-width:100%; height:auto; }
     :root{
       --tosca-50:#ecfdfb; --tosca-100:#cffaf4; --tosca-200:#a5f2e6;
       --tosca-300:#73e5d3; --tosca-400:#3fd2bd; --tosca-500:#18b7a6; --tosca-600:#119a8d; --tosca-700:#0e7b71; --tosca-800:#0d625b; --tosca-900:#0b4e49;
       --glass-bg: rgba(255,255,255,.18); --glass-stroke: rgba(255,255,255,.4); --glass-shadow: 0 6px 28px rgba(0,0,0,.18); --ring: rgba(24,183,166,.35);
+      --soft-card: linear-gradient(180deg, rgba(24,183,166,.08), rgba(24,183,166,0) 65%);
     }
     body{
       background:
@@ -30,10 +31,19 @@
     .btn-tosca{ --bs-btn-bg: var(--tosca-500); --bs-btn-border-color: var(--tosca-500); --bs-btn-hover-bg: var(--tosca-600); --bs-btn-hover-border-color: var(--tosca-600); --bs-btn-active-bg: var(--tosca-700); --bs-btn-active-border-color: var(--tosca-700); --bs-btn-color:#fff; --bs-btn-focus-shadow-rgb: 24,183,166; }
     .btn-outline-tosca{ --bs-btn-color: var(--tosca-700); --bs-btn-border-color: var(--tosca-500); --bs-btn-hover-bg: var(--tosca-500); --bs-btn-hover-border-color: var(--tosca-500); --bs-btn-active-bg: var(--tosca-600); --bs-btn-active-border-color: var(--tosca-600); --bs-btn-focus-shadow-rgb: 24,183,166; }
     .text-tosca{ color: var(--tosca-600); }
-    .card .card-header{ background: linear-gradient(180deg, rgba(24,183,166,.08), rgba(24,183,166,0) 80%); border-bottom: 1px solid rgba(24,183,166,.12); }
+    .card .card-header{ background: var(--soft-card); border-bottom: 1px solid rgba(24,183,166,.12); }
     .ring-highlight{ box-shadow: 0 0 0 .2rem var(--ring); }
     .form-control:focus, .form-select:focus{ border-color: var(--tosca-500) !important; box-shadow: 0 0 0 .25rem rgba(24,183,166,.25) !important; }
     .form-check-input{ accent-color: var(--tosca-600); }
+    .section-chip{ display:inline-flex; align-items:center; gap:.4rem; padding:.35rem .75rem; border-radius:999px; background:rgba(24,183,166,.12); color:var(--tosca-700); font-weight:600; font-size:.85rem; }
+    .icon-pill{ width:3.2rem; height:3.2rem; border-radius:1rem; display:grid; place-items:center; background:linear-gradient(135deg, rgba(24,183,166,.18), rgba(24,183,166,.38)); color:var(--tosca-700); }
+    .card-divider{ margin:1.25rem 0; height:1px; background:linear-gradient(90deg, transparent, rgba(24,183,166,.2), transparent); }
+    @media (min-width: 992px){
+      main.container{ max-width: 1080px; }
+      .page-grid{ display:grid; grid-template-columns: 0.9fr 1.1fr; gap: 1.5rem; align-items:start; }
+      .page-grid .card{ height: auto; }
+      .card-body{ overflow: visible; }
+    }
     @media (max-width: 576px){
       .container{ padding-left:.75rem !important; padding-right:.75rem !important; }
       .card .card-body{ padding: 1rem; }
@@ -60,13 +70,13 @@
 </nav>
 
 <main class="container p-3 p-md-4">
-  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-4">
+  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
     <div>
-      <p class="text-uppercase text-muted small mb-1">Pengaturan</p>
-      <h1 class="h3 m-0">Atur Akun Anda</h1>
+      <span class="section-chip"><i class="bi bi-sliders"></i> Pengaturan</span>
+      <h1 class="h3 m-0 mt-2">Atur Akun Anda</h1>
       <div class="text-muted">Perbarui data profil dan amankan akses login.</div>
     </div>
-    <div>
+    <div class="d-flex gap-2 flex-wrap">
       <a class="btn btn-outline-tosca" href="/guest"><i class="bi bi-arrow-left-circle"></i> Kembali ke Dashboard</a>
     </div>
   </div>
@@ -84,12 +94,12 @@
     <div class="alert alert-danger glass mb-2" th:text="${passwordError}">Gagal memperbarui password.</div>
   </div>
 
-  <div class="row g-4">
+  <div class="row g-4 page-grid">
     <div class="col-12 col-lg-4">
       <div class="card glass h-100">
         <div class="card-body">
           <div class="d-flex align-items-start gap-3">
-            <div class="rounded-circle bg-gradient p-3 text-white">
+            <div class="icon-pill">
               <i class="bi bi-person-lines-fill fs-4"></i>
             </div>
             <div>
@@ -98,7 +108,7 @@
               <span class="badge text-bg-light text-tosca">Tamu SINIO</span>
             </div>
           </div>
-          <hr>
+          <div class="card-divider"></div>
           <ul class="list-unstyled small mb-0">
             <li class="mb-2">
               <i class="bi bi-envelope text-tosca me-2"></i>
@@ -138,17 +148,19 @@
         </div>
         <div class="card-body">
           <form th:action="@{/guest/akun/profile}" method="post" th:object="${profileForm}">
-            <div class="mb-3">
-              <label class="form-label fw-semibold">Nama Lengkap</label>
-              <input type="text" class="form-control" placeholder="Nama lengkap" th:field="*{fullName}" th:classappend="${#fields.hasErrors('fullName')} ? ' is-invalid'">
-              <div class="invalid-feedback" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}"></div>
+            <div class="row g-3">
+              <div class="col-12 col-lg-6">
+                <label class="form-label fw-semibold">Nama Lengkap</label>
+                <input type="text" class="form-control" placeholder="Nama lengkap" th:field="*{fullName}" th:classappend="${#fields.hasErrors('fullName')} ? ' is-invalid'">
+                <div class="invalid-feedback" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}"></div>
+              </div>
+              <div class="col-12 col-lg-6">
+                <label class="form-label fw-semibold">Email</label>
+                <input type="email" class="form-control" placeholder="nama@contoh.com" th:field="*{email}" th:classappend="${#fields.hasErrors('email')} ? ' is-invalid'">
+                <div class="invalid-feedback" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
+              </div>
             </div>
-            <div class="mb-3">
-              <label class="form-label fw-semibold">Email</label>
-              <input type="email" class="form-control" placeholder="nama@contoh.com" th:field="*{email}" th:classappend="${#fields.hasErrors('email')} ? ' is-invalid'">
-              <div class="invalid-feedback" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
-            </div>
-            <div class="d-flex flex-wrap gap-2">
+            <div class="d-flex flex-wrap gap-2 mt-3">
               <button class="btn btn-tosca" type="submit"><i class="bi bi-save"></i> Simpan Perubahan</button>
               <button class="btn btn-outline-tosca" type="reset">Reset</button>
             </div>
@@ -165,22 +177,24 @@
         </div>
         <div class="card-body">
           <form th:action="@{/guest/akun/password}" method="post" th:object="${passwordForm}">
-            <div class="mb-3">
-              <label class="form-label fw-semibold">Password Saat Ini</label>
-              <input type="password" class="form-control" placeholder="••••••" th:field="*{currentPassword}" th:classappend="${#fields.hasErrors('currentPassword')} ? ' is-invalid'">
-              <div class="invalid-feedback" th:if="${#fields.hasErrors('currentPassword')}" th:errors="*{currentPassword}"></div>
+            <div class="row g-3">
+              <div class="col-12 col-lg-4">
+                <label class="form-label fw-semibold">Password Saat Ini</label>
+                <input type="password" class="form-control" placeholder="*******" th:field="*{currentPassword}" th:classappend="${#fields.hasErrors('currentPassword')} ? ' is-invalid'">
+                <div class="invalid-feedback" th:if="${#fields.hasErrors('currentPassword')}" th:errors="*{currentPassword}"></div>
+              </div>
+              <div class="col-12 col-lg-4">
+                <label class="form-label fw-semibold">Password Baru</label>
+                <input type="password" class="form-control" placeholder="Minimal 6 karakter" th:field="*{newPassword}" th:classappend="${#fields.hasErrors('newPassword')} ? ' is-invalid'">
+                <div class="invalid-feedback" th:if="${#fields.hasErrors('newPassword')}" th:errors="*{newPassword}"></div>
+              </div>
+              <div class="col-12 col-lg-4">
+                <label class="form-label fw-semibold">Konfirmasi Password Baru</label>
+                <input type="password" class="form-control" placeholder="Ulangi password baru" th:field="*{confirmPassword}" th:classappend="${#fields.hasErrors('confirmPassword')} ? ' is-invalid'">
+                <div class="invalid-feedback" th:if="${#fields.hasErrors('confirmPassword')}" th:errors="*{confirmPassword}"></div>
+              </div>
             </div>
-            <div class="mb-3">
-              <label class="form-label fw-semibold">Password Baru</label>
-              <input type="password" class="form-control" placeholder="Minimal 6 karakter" th:field="*{newPassword}" th:classappend="${#fields.hasErrors('newPassword')} ? ' is-invalid'">
-              <div class="invalid-feedback" th:if="${#fields.hasErrors('newPassword')}" th:errors="*{newPassword}"></div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label fw-semibold">Konfirmasi Password Baru</label>
-              <input type="password" class="form-control" placeholder="Ulangi password baru" th:field="*{confirmPassword}" th:classappend="${#fields.hasErrors('confirmPassword')} ? ' is-invalid'">
-              <div class="invalid-feedback" th:if="${#fields.hasErrors('confirmPassword')}" th:errors="*{confirmPassword}"></div>
-            </div>
-            <div class="alert alert-warning small" role="alert">
+            <div class="alert alert-warning small mt-3" role="alert">
               Kami akan mengeluarkan Anda dari semua sesi aktif setelah password diperbarui.
             </div>
             <div class="d-flex flex-wrap gap-2">
