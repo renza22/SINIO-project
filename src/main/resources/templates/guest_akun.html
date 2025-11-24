@@ -38,11 +38,22 @@
     .section-chip{ display:inline-flex; align-items:center; gap:.4rem; padding:.35rem .75rem; border-radius:999px; background:rgba(24,183,166,.12); color:var(--tosca-700); font-weight:600; font-size:.85rem; }
     .icon-pill{ width:3.2rem; height:3.2rem; border-radius:1rem; display:grid; place-items:center; background:linear-gradient(135deg, rgba(24,183,166,.18), rgba(24,183,166,.38)); color:var(--tosca-700); }
     .card-divider{ margin:1.25rem 0; height:1px; background:linear-gradient(90deg, transparent, rgba(24,183,166,.2), transparent); }
+    .label-lockup{ display:flex; align-items:flex-end; min-height: 46px; margin-bottom:.3rem; }
+    .page-grid > [class*="col-"]{ width:100%; }
     @media (min-width: 992px){
-      main.container{ max-width: 1080px; }
-      .page-grid{ display:grid; grid-template-columns: 0.9fr 1.1fr; gap: 1.5rem; align-items:start; }
+      main.container{ max-width: 1200px; }
+      .page-grid{
+        display:grid;
+        grid-template-columns: minmax(340px, 0.95fr) minmax(500px, 1.05fr);
+        gap: 1.75rem;
+        align-items:start;
+      }
       .page-grid .card{ height: auto; }
       .card-body{ overflow: visible; }
+    }
+    @media (min-width: 1200px){
+      main.container{ max-width: 1280px; }
+      .page-grid{ grid-template-columns: minmax(380px, 1fr) minmax(560px, 1.08fr); }
     }
     @media (max-width: 576px){
       .container{ padding-left:.75rem !important; padding-right:.75rem !important; }
@@ -179,17 +190,17 @@
           <form th:action="@{/guest/akun/password}" method="post" th:object="${passwordForm}">
             <div class="row g-3">
               <div class="col-12 col-lg-4">
-                <label class="form-label fw-semibold">Password Saat Ini</label>
+                <label class="form-label fw-semibold label-lockup">Password Saat Ini</label>
                 <input type="password" class="form-control" placeholder="*******" th:field="*{currentPassword}" th:classappend="${#fields.hasErrors('currentPassword')} ? ' is-invalid'">
                 <div class="invalid-feedback" th:if="${#fields.hasErrors('currentPassword')}" th:errors="*{currentPassword}"></div>
               </div>
               <div class="col-12 col-lg-4">
-                <label class="form-label fw-semibold">Password Baru</label>
+                <label class="form-label fw-semibold label-lockup">Password Baru</label>
                 <input type="password" class="form-control" placeholder="Minimal 6 karakter" th:field="*{newPassword}" th:classappend="${#fields.hasErrors('newPassword')} ? ' is-invalid'">
                 <div class="invalid-feedback" th:if="${#fields.hasErrors('newPassword')}" th:errors="*{newPassword}"></div>
               </div>
               <div class="col-12 col-lg-4">
-                <label class="form-label fw-semibold">Konfirmasi Password Baru</label>
+                <label class="form-label fw-semibold label-lockup">Konfirmasi Password Baru</label>
                 <input type="password" class="form-control" placeholder="Ulangi password baru" th:field="*{confirmPassword}" th:classappend="${#fields.hasErrors('confirmPassword')} ? ' is-invalid'">
                 <div class="invalid-feedback" th:if="${#fields.hasErrors('confirmPassword')}" th:errors="*{confirmPassword}"></div>
               </div>
