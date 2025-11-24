@@ -262,6 +262,77 @@ public class ReservationService {
             .toList();
     }
 
+    public List<java.util.Map<String, Object>> serviceOptionsView(Reservation reservation) {
+        Room room = primaryRoom(reservation);
+        return Optional.ofNullable(room.getServiceOptions()).orElse(List.of()).stream()
+            .filter(option -> option.getId() != null)
+            .sorted(java.util.Comparator.comparing(RoomServiceOption::getSortOrder, java.util.Comparator.nullsLast(Integer::compareTo))
+                .thenComparing(RoomServiceOption::getName, String.CASE_INSENSITIVE_ORDER))
+            .map(option -> {
+                java.util.Map<String, Object> map = new java.util.HashMap<>();
+                map.put("layananId", option.getId());
+                map.put("nama", option.getName());
+                map.put("satuan", option.getUnit());
+                map.put("hargaSatuan", option.getPrice());
+                return map;
+            })
+            .toList();
+    }
+
+    public List<java.util.Map<String, Object>> serviceCartView(Reservation reservation) {
+        return Optional.ofNullable(reservation.getRequestedServices()).orElse(List.of()).stream()
+            .collect(Collectors.groupingBy(
+                s -> s.getName() + "|" + s.getUnit() + "|" + s.getUnitPrice(),
+                java.util.LinkedHashMap::new,
+                Collectors.toList()
+            ))
+            .values()
+            .stream()
+            .map(list -> {
+                ReservationServiceSelection first = list.get(0);
+                int qty = list.size();
+                java.util.Map<String, Object> map = new java.util.HashMap<>();
+                map.put("nama", first.getName());
+                map.put("satuan", first.getUnit());
+                map.put("harga", first.getUnitPrice());
+                map.put("qty", qty);
+                return map;
+            })
+            .toList();
+    }
+
+    @Transactional
+    public void addServiceToActiveReservation(Long userId, Long serviceOptionId, int qty) {
+        if (qty <= 0) {
+            throw new IllegalArgumentException("Jumlah layanan minimal 1.");
+        }
+        Reservation reservation = findActiveForUser(userId)
+            .orElseThrow(() -> new IllegalStateException("Tidak ada reservasi aktif."));
+        if (reservation.getStatus() == ReservationStatus.CANCELED || reservation.getStatus() == ReservationStatus.CHECKED_OUT) {
+            throw new IllegalStateException("Reservasi tidak aktif.");
+        }
+
+        Room room = primaryRoom(reservation);
+        RoomServiceOption option = Optional.ofNullable(room.getServiceOptions()).orElse(List.of()).stream()
+            .filter(o -> o.getId() != null && o.getId().equals(serviceOptionId))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Layanan tidak ditemukan untuk kamar ini."));
+
+        if (reservation.getRequestedServices() == null) {
+            reservation.setRequestedServices(new ArrayList<>());
+        }
+        for (int i = 0; i < qty; i++) {
+            ReservationServiceSelection selection = ReservationServiceSelection.of(
+                option.getName(),
+                option.getUnit(),
+                option.getPrice()
+            );
+            selection.setReservation(reservation);
+            reservation.getRequestedServices().add(selection);
+        }
+        reservationRepository.save(reservation);
+    }
+
     
 
     // ---- Guest-driven transitions with ownership checks ----

@@ -228,6 +228,11 @@ public class PageController {
         return "guest_reservasi";
     }
 
+    @GetMapping("/guest/layanan")
+    public String guestServices(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+        return guestDashboard(session, redirectAttributes, model);
+    }
+
     // ---- Guest: create reservation ----
     @PostMapping("/guest/reservasi")
     public String createReservation(
@@ -302,6 +307,57 @@ public class PageController {
             redirectAttributes.addFlashAttribute("guestError", "Gagal membatalkan reservasi.");
         }
         return "redirect:/guest/reservasi";
+    }
+
+    @PostMapping("/guest/layanan/pesan")
+    public String orderRoomService(
+        @ModelAttribute("layananForm") LayananForm layananForm,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.TAMU);
+        if (redirect != null) {
+            return redirect;
+        }
+        Long userId = requireUserId(session, redirectAttributes);
+        if (userId == null) {
+            return "redirect:/login";
+        }
+        try {
+            if (layananForm.getLayananId() == null) {
+                throw new IllegalArgumentException("Pilih layanan yang ingin dipesan.");
+            }
+            int qty = layananForm.getQty() != null ? layananForm.getQty() : 1;
+            reservationService.addServiceToActiveReservation(userId, layananForm.getLayananId(), qty);
+            redirectAttributes.addFlashAttribute("guestMessage", "Pesanan layanan ditambahkan.");
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            redirectAttributes.addFlashAttribute("guestError", ex.getMessage());
+            redirectAttributes.addFlashAttribute("layananForm", layananForm);
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("guestError", "Gagal menambahkan layanan.");
+            redirectAttributes.addFlashAttribute("layananForm", layananForm);
+        }
+        return "redirect:/dashboard/tamu";
+    }
+
+    @PostMapping("/guest/layanan/submit")
+    public String submitServiceCart(HttpSession session, RedirectAttributes redirectAttributes) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.TAMU);
+        if (redirect != null) {
+            return redirect;
+        }
+        Long userId = requireUserId(session, redirectAttributes);
+        if (userId == null) {
+            return "redirect:/login";
+        }
+        try {
+            reservationService.findActiveForUser(userId)
+                .orElseThrow(() -> new IllegalStateException("Tidak ada reservasi aktif."));
+            redirectAttributes.addFlashAttribute("guestMessage", "Pesanan layanan Anda telah dicatat. Tim kami akan memproses.");
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            redirectAttributes.addFlashAttribute("guestError", ex.getMessage());
+        }
+        return "redirect:/dashboard/tamu";
     }
 
     @GetMapping("/guest/akun")
@@ -777,17 +833,27 @@ public class PageController {
         if (userId != null) {
             reservationService.findActiveForUser(userId)
                 .ifPresentOrElse(
-                    r -> model.addAttribute("aktif", reservationService.toActiveView(r)),
-                    () -> model.addAttribute("aktif", null)
+                    r -> {
+                        model.addAttribute("aktif", reservationService.toActiveView(r));
+                        model.addAttribute("layananList", reservationService.serviceOptionsView(r));
+                        model.addAttribute("keranjangLayanan", reservationService.serviceCartView(r));
+                    },
+                    () -> {
+                        model.addAttribute("aktif", null);
+                        model.addAttribute("layananList", Collections.emptyList());
+                        model.addAttribute("keranjangLayanan", Collections.emptyList());
+                    }
                 );
         } else {
             model.addAttribute("aktif", null);
+            model.addAttribute("layananList", Collections.emptyList());
+            model.addAttribute("keranjangLayanan", Collections.emptyList());
         }
         model.addAttribute("invoice", null);
         model.addAttribute("facilityOptions", roomService.getFacilityOptions());
-        model.addAttribute("layananList", Collections.emptyList());
-        model.addAttribute("keranjangLayanan", Collections.emptyList());
-        model.addAttribute("layananForm", new LayananForm());
+        if (!model.containsAttribute("layananForm")) {
+            model.addAttribute("layananForm", new LayananForm());
+        }
     }
 
     private void populateAdminModel(Model model) {

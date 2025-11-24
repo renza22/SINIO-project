@@ -94,7 +94,9 @@
         <ul class="navbar-nav ms-auto gap-2">
           <li class="nav-item"><a class="nav-link active" aria-current="page" href="/dashboard/karyawan">Dashboard</a></li>
           <li class="nav-item"><a class="nav-link" href="/admin/kamar">Data Kamar</a></li>
-          <li class="nav-item"><a class="nav-link" href="/logout">Keluar</a></li>
+          <li class="nav-item">
+            <a class="nav-link" href="/logout" onclick="return confirm('Anda yakin ingin keluar dari akun karyawan?');">Keluar</a>
+          </li>
         </ul>
       </div>
     </div>

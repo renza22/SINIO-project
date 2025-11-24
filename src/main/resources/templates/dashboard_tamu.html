@@ -88,6 +88,18 @@
 </nav>
 
 <main class="container p-3 p-md-4">
+  <div class="mb-3" th:if="${guestMessage}">
+    <div class="alert alert-success glass border-0 mb-0 d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-check-circle-fill"></i>
+      <span th:text="${guestMessage}">Pesanan berhasil diproses.</span>
+    </div>
+  </div>
+  <div class="mb-3" th:if="${guestError}">
+    <div class="alert alert-danger glass border-0 mb-0 d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <span th:text="${guestError}">Terjadi kesalahan.</span>
+    </div>
+  </div>
   <!-- Greeting -->
   <div class="alert glass d-flex align-items-center" role="alert">
     <i class="bi bi-person-circle me-2 fs-4 text-tosca"></i>
@@ -195,45 +207,50 @@
       <div class="card glass">
         <div class="card-header"><strong class="text-tosca">Pesan Layanan Kamar</strong></div>
         <div class="card-body">
-          <form th:action="@{/guest/layanan/pesan}" th:object="${layananForm}" method="post" class="row g-2 g-md-3">
-            <div class="col-12 col-md-6">
-              <label class="form-label">Jenis Layanan</label>
-              <select class="form-select" name="layananId" required th:field="*{layananId}">
-                <option value="" disabled selected>Pilih layanan</option>
-                <option th:each="l : ${layananList}" th:value="${l.layananId}"
-                        th:text="${l.nama + ' (' + #numbers.formatDecimal(l.hargaSatuan,0,'POINT',2,'COMMA') + '/' + l.satuan + ')'}">
-                  Laundry (25.000/kg)
-                </option>
-              </select>
+          <div th:if="${aktif == null}" class="text-muted">Pesan layanan tersedia setelah Anda memiliki reservasi aktif.</div>
+          <div th:if="${aktif != null}">
+            <form th:action="@{/guest/layanan/pesan}" th:object="${layananForm}" method="post" class="row g-2 g-md-3">
+              <div class="col-12 col-md-6">
+                <label class="form-label">Jenis Layanan</label>
+                <select class="form-select" name="layananId" required th:field="*{layananId}">
+                  <option value="" disabled selected>Pilih layanan</option>
+                  <option th:each="l : ${layananList}" th:value="${l.layananId}"
+                          th:text="${l.nama + ' (' + #numbers.formatDecimal(l.hargaSatuan,0,'POINT',2,'COMMA') + '/' + l.satuan + ')'}">
+                    Laundry (25.000/kg)
+                  </option>
+                </select>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">Qty</label>
+                <input type="number" class="form-control" name="qty" min="1" value="1" required th:field="*{qty}">
+              </div>
+              <div class="col-6 col-md-3 d-flex align-items-end">
+                <button class="btn btn-tosca w-100" type="submit"><i class="bi bi-cart-plus"></i> Tambah</button>
+              </div>
+            </form>
+            <div class="table-responsive mt-3">
+              <table class="table table-sm table-hover table-striped align-middle table-kaca">
+                <thead>
+                  <tr><th>Layanan</th><th>Qty</th><th>Harga</th><th>Total</th></tr>
+                </thead>
+                <tbody>
+                  <tr th:each="i : ${keranjangLayanan}">
+                    <td th:text="${i.nama}">Snack Bar</td>
+                    <td th:text="${i.qty}">2</td>
+                    <td th:text="${#numbers.formatDecimal(i.harga,0,'POINT',2,'COMMA')}">30.000</td>
+                    <td th:text="${#numbers.formatDecimal(i.qty * i.harga,0,'POINT',2,'COMMA')}">60.000</td>
+                  </tr>
+                  <tr th:if="${#lists.isEmpty(keranjangLayanan)}">
+                    <td colspan="4" class="text-center text-muted">Belum ada item</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-            <div class="col-6 col-md-3">
-              <label class="form-label">Qty</label>
-              <input type="number" class="form-control" name="qty" min="1" value="1" required>
+            <div class="actions justify-content-end">
+              <form th:action="@{/guest/layanan/submit}" method="post" class="d-inline">
+                <button class="btn btn-success" type="submit"><i class="bi bi-send"></i> Kirim Pesanan</button>
+              </form>
             </div>
-            <div class="col-6 col-md-3 d-flex align-items-end">
-              <button class="btn btn-tosca w-100" type="submit"><i class="bi bi-cart-plus"></i> Tambah</button>
-            </div>
-          </form>
-          <div class="table-responsive mt-3">
-            <table class="table table-sm table-hover table-striped align-middle table-kaca">
-              <thead>
-                <tr><th>Layanan</th><th>Qty</th><th>Harga</th><th>Total</th></tr>
-              </thead>
-              <tbody>
-                <tr th:each="i : ${keranjangLayanan}">
-                  <td th:text="${i.nama}">Snack Bar</td>
-                  <td th:text="${i.qty}">2</td>
-                  <td th:text="${#numbers.formatDecimal(i.harga,0,'POINT',2,'COMMA')}">30.000</td>
-                  <td th:text="${#numbers.formatDecimal(i.qty * i.harga,0,'POINT',2,'COMMA')}">60.000</td>
-                </tr>
-                <tr th:if="${#lists.isEmpty(keranjangLayanan)}">
-                  <td colspan="4" class="text-center text-muted">Belum ada item</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="actions justify-content-end">
-            <a class="btn btn-success" th:href="@{/guest/layanan/submit}"><i class="bi bi-send"></i> Kirim Pesanan</a>
           </div>
         </div>
       </div>
