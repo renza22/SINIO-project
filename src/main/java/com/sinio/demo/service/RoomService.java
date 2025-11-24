@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
@@ -58,6 +59,18 @@ public class RoomService {
 
     public List<Room> findAllSorted() {
         return roomRepository.findAll(Sort.by(Sort.Order.by("number").ignoreCase()));
+    }
+
+    @Transactional
+    public Room markAvailableAfterCleaning(Long roomId) {
+        Room room = roomRepository.findById(roomId)
+            .orElseThrow(() -> new IllegalArgumentException("Kamar tidak ditemukan."));
+        if (room.getStatus() != RoomStatus.CLEANING) {
+            throw new IllegalStateException("Kamar tidak dalam status pembersihan.");
+        }
+        room.setStatus(RoomStatus.AVAILABLE);
+        room.setLastCleanedAt(LocalDateTime.now());
+        return roomRepository.save(room);
     }
 
     public List<RoomSummaryView> findGuestSummaries() {

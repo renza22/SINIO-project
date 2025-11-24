@@ -40,6 +40,23 @@
     .badge-tosca{ background: var(--tosca-500); }
     .text-tosca{ color: var(--tosca-600); }
 
+    .badge-status{
+      border-radius: 999px;
+      padding: .35rem .75rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      background: rgba(24,183,166,.08);
+      color: var(--tosca-700);
+    }
+    .badge-status::before{ content:""; width:.55rem; height:.55rem; border-radius:50%; background: currentColor; }
+    .status-available{ background: rgba(24,183,166,.12); color: var(--tosca-700); }
+    .status-booked{ background: rgba(13,110,253,.12); color: #0b5ed7; }
+    .status-occupied{ background: rgba(220,53,69,.12); color: #a52834; }
+    .status-cleaning{ background: rgba(255,193,7,.18); color: #b88600; }
+    .status-maintenance{ background: rgba(108,117,125,.16); color: #495057; }
+
     .table-kaca thead{ position: sticky; top: 0; z-index: 1; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); background: rgba(255,255,255,.75); border-bottom: 1px solid var(--glass-stroke); }
     .table.table-striped>tbody>tr:nth-of-type(odd){ --bs-table-accent-bg: rgba(24,183,166,.05); }
     .table.table-hover tbody tr:hover{ background: rgba(24,183,166,.09); }
@@ -82,9 +99,21 @@
       </div>
     </div>
   </div>
-  </nav>
+</nav>
 
 <main class="container p-3 p-md-4">
+  <div class="mb-3" th:if="${employeeSuccess}">
+    <div class="alert alert-success glass border-0 mb-0 d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-check-circle-fill"></i>
+      <span th:text="${employeeSuccess}">Status berhasil diperbarui.</span>
+    </div>
+  </div>
+  <div class="mb-3" th:if="${employeeError}">
+    <div class="alert alert-danger glass border-0 mb-0 d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <span th:text="${employeeError}">Gagal memproses permintaan.</span>
+    </div>
+  </div>
   <div class="row g-3">
     <div class="col-12">
       <div class="glass p-3 d-flex flex-wrap align-items-center gap-2">
@@ -197,6 +226,55 @@
                 </tr>
                 <tr th:if="${#lists.isEmpty(inhouse)}">
                   <td colspan="6" class="text-center text-muted">Tidak ada tamu yang sedang menginap.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="row g-3 mt-1">
+    <div class="col-12">
+      <div class="card glass h-100">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <strong class="text-tosca">Status Kamar</strong>
+          <span class="text-muted small">Tandai kamar selesai dibersihkan menjadi tersedia.</span>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover table-striped align-middle table-kaca mb-0">
+              <thead>
+                <tr>
+                  <th>Nomor</th><th>Tipe</th><th>Status</th><th>Terakhir Dibersihkan</th><th class="text-end">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="room : ${rooms}">
+                  <td class="fw-semibold" th:text="${room.number}">101</td>
+                  <td th:text="${room.type.displayName}">Deluxe King</td>
+                  <td>
+                    <span class="badge-status status-available"
+                          th:classappend="' status-' + ${#strings.toLowerCase(room.status.name())}"
+                          th:text="${room.status.displayName}">Tersedia</span>
+                  </td>
+                  <td>
+                    <span th:if="${room.lastCleanedAt != null}"
+                          th:text="${#temporals.format(room.lastCleanedAt,'dd MMM yyyy HH:mm')}">07 Nov 2025 14:00</span>
+                    <span class="text-muted" th:if="${room.lastCleanedAt == null}">-</span>
+                  </td>
+                  <td class="text-end">
+                    <form th:if="${room.status.name() == 'CLEANING'}"
+                          th:action="@{/karyawan/kamar/{id}/available(id=${room.id})}"
+                          method="post"
+                          class="d-inline">
+                      <button type="submit" class="btn btn-sm btn-success">Tandai Tersedia</button>
+                    </form>
+                    <span class="text-muted small" th:if="${room.status.name() != 'CLEANING'}">-</span>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(rooms)}">
+                  <td colspan="5" class="text-center text-muted">Belum ada data kamar.</td>
                 </tr>
               </tbody>
             </table>

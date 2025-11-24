@@ -863,11 +863,33 @@ public class PageController {
         return "redirect:/dashboard/karyawan";
     }
 
+    @PostMapping("/karyawan/kamar/{id}/available")
+    public String markRoomAvailable(
+        @PathVariable Long id,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.KARYAWAN);
+        if (redirect != null) {
+            return redirect;
+        }
+        try {
+            roomService.markAvailableAfterCleaning(id);
+            redirectAttributes.addFlashAttribute("employeeSuccess", "Status kamar diperbarui menjadi tersedia.");
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            redirectAttributes.addFlashAttribute("employeeError", ex.getMessage());
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("employeeError", "Gagal memperbarui status kamar.");
+        }
+        return "redirect:/dashboard/karyawan";
+    }
+
     private void populateEmployeeModel(Model model) {
         model.addAttribute("checkinToday", reservationService.arrivalsTodayView());
         model.addAttribute("checkoutToday", reservationService.departuresTodayView());
         model.addAttribute("inhouse", reservationService.inhouseView());
         model.addAttribute("facilityOptions", roomService.getFacilityOptions());
+        model.addAttribute("rooms", roomService.findAllSorted());
         model.addAttribute("ordersInProgress", Collections.emptyList());
     }
 
