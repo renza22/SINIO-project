@@ -133,6 +133,73 @@
     </div>
   </div>
 
+  <div class="card glass mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong>Ringkasan Pembayaran</strong>
+      <a class="btn btn-sm btn-outline-tosca" th:if="${payment != null}" th:href="@{'/payment/receipt'(order_id=${payment.orderId})}" target="_blank">
+        <i class="bi bi-printer"></i> Cetak/Unduh Bukti
+      </a>
+    </div>
+    <div class="card-body" th:if="${payment != null}">
+      <div class="row g-2">
+        <div class="col-12 col-md-6">
+          <div class="text-muted small">Metode</div>
+          <div class="fw-semibold" th:text="${payment.paymentType != null ? payment.paymentType : 'UNKNOWN'}">CASH</div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="text-muted small">Status Pembayaran</div>
+          <div class="fw-semibold" th:text="${payment.status}">PENDING</div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="text-muted small">Order ID</div>
+          <div class="fw-semibold" th:text="${payment.orderId}">ORD-1</div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="text-muted small">Jumlah</div>
+          <div class="fw-semibold" th:text="${#numbers.formatDecimal(payment.amount,0,'POINT',2,'COMMA')}">0</div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="text-muted small">Waktu Dibuat</div>
+          <div th:text="${payment.createdAt != null ? #temporals.format(payment.createdAt, 'dd MMM yyyy HH:mm') : '-'}">-</div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="text-muted small">Waktu Transaksi</div>
+          <div th:text="${payment.transactionTime != null ? #temporals.format(payment.transactionTime, 'dd MMM yyyy HH:mm') : '-'}">-</div>
+        </div>
+      </div>
+      <hr>
+      <div class="row g-2">
+        <div class="col-12 col-md-6">
+          <div class="text-muted small">Tarif kamar per malam</div>
+          <div th:text="${#numbers.formatDecimal(reservation.room.rate,0,'POINT',2,'COMMA')}">0</div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="text-muted small">Durasi</div>
+          <div><span th:text="${T(java.time.temporal.ChronoUnit).DAYS.between(reservation.checkIn, reservation.checkOut)}">1</span> malam</div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="text-muted small">Total kamar</div>
+          <div class="fw-semibold" th:text="${#numbers.formatDecimal(reservation.room.rate.multiply(T(java.math.BigDecimal).valueOf(T(java.time.temporal.ChronoUnit).DAYS.between(reservation.checkIn, reservation.checkOut))),0,'POINT',2,'COMMA')}">0</div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="text-muted small">Total layanan</div>
+          <div class="fw-semibold" th:text="${#numbers.formatDecimal(reservation.requestedServicesTotal,0,'POINT',2,'COMMA')}">0</div>
+        </div>
+        <div class="col-12">
+          <div class="d-flex justify-content-between fw-semibold">
+            <span>Total tagihan</span>
+            <span th:text="${#numbers.formatDecimal(payment.amount,0,'POINT',2,'COMMA')}">0</span>
+          </div>
+          <div class="text-muted small" th:if="${payment.paymentType != null && payment.paymentType.toUpperCase() == 'CASH'}">Bayar di hotel saat check-in.</div>
+          <div class="text-muted small" th:if="${payment.paymentType != null && payment.paymentType.toUpperCase() != 'CASH'}">Pembayaran online via Midtrans.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body text-muted" th:if="${payment == null}">
+      Belum ada catatan pembayaran untuk reservasi ini.
+    </div>
+  </div>
+
   <div class="text-danger small" th:if="${guestError != null}" th:text="${guestError}"></div>
 </main>
 

@@ -304,7 +304,14 @@ public class RoomService {
         if (!stored.isEmpty()) {
             return sortServices(stored);
         }
-        // Fallback only for display; do not persist defaults during read.
+        // Persist default options if room already tersimpan supaya bisa dipilih (punya id)
+        if (room.getId() != null) {
+            List<RoomServiceOption> defaults = defaultServiceOptions(room);
+            room.setServiceOptions(defaults);
+            Room saved = roomRepository.save(room);
+            return sortServices(Optional.ofNullable(saved.getServiceOptions()).orElse(defaults));
+        }
+        // Jika belum tersimpan, kembalikan default untuk tampilan saja.
         return sortServices(defaultServiceOptions(room));
     }
 

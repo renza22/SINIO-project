@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pembayaran Reservasi - SINIO</title>
+    <script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js"
+            th:attr="data-client-key=${clientKey}"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(1200px 800px at 10% -10%, rgba(24, 183, 166, .18), transparent 55%),
+                        radial-gradient(900px 600px at 120% 30%, rgba(17, 154, 141, .16), transparent 55%),
+                        linear-gradient(135deg, #18b7a6 0%, #0e7b71 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: #0b4e49;
+        }
+        .container {
+            background: #fff;
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 680px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(17, 154, 141, 0.12);
+        }
+        .header { text-align: center; margin-bottom: 24px; }
+        .header h1 { color: #333; font-size: 26px; margin-bottom: 8px; }
+        .header p { color: #666; font-size: 14px; }
+        .payment-details {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+            font-weight: 700;
+            color: #667eea;
+            padding-top: 14px;
+            margin-top: 8px;
+            border-top: 2px solid #667eea;
+        }
+        .detail-label { color: #666; }
+        .detail-value { color: #333; font-weight: 600; text-align: right; }
+        .pay-button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #18b7a6 0%, #0e7b71 100%);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 10px 24px rgba(14, 123, 113, 0.25);
+        }
+        .pay-button:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(14, 123, 113, 0.32); }
+        .pay-button:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
+        .back-link { display: block; text-align: center; margin-top: 16px; color: #667eea; text-decoration: none; font-size: 14px; }
+        .back-link:hover { text-decoration: underline; }
+        .loading { display: none; text-align: center; margin-top: 14px; color: #555; }
+        .loading.show { display: block; }
+        .method-group { display: flex; gap: 12px; flex-direction: column; align-items: flex-end; text-align: right; }
+        .method-group label { font-weight: 600; color: #333; }
+        .note { color: #555; font-size: 13px; margin-top: 8px; text-align: right; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Pembayaran Reservasi</h1>
+        <p>Pilih metode bayar: online via Midtrans atau bayar cash di hotel.</p>
+    </div>
+
+    <div class="payment-details">
+        <div class="detail-row">
+            <span class="detail-label">Kode Reservasi</span>
+            <span class="detail-value" th:text="${reservation.code}">RSV-000</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Kamar</span>
+            <span class="detail-value" th:text="${reservation.room != null ? reservation.room.number : 'Kamar'}">101</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Check-in</span>
+            <span class="detail-value" th:text="${#temporals.format(reservation.checkIn, 'dd MMM yyyy')}">01 Jan 2025</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Check-out</span>
+            <span class="detail-value" th:text="${#temporals.format(reservation.checkOut, 'dd MMM yyyy')}">02 Jan 2025</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Total</span>
+            <span class="detail-value" th:text="'Rp ' + #numbers.formatDecimal(totalAmount, 0, 0, ',', '.')">Rp 0</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Metode Bayar</span>
+            <span class="detail-value method-group">
+                <label><input type="radio" name="payMethod" value="midtrans" checked> Online (Midtrans)</label>
+                <label><input type="radio" name="payMethod" value="cash"> Bayar di hotel (Cash)</label>
+                <span class="note" id="method-note">Pembayaran diproses melalui Midtrans.</span>
+            </span>
+        </div>
+    </div>
+
+    <button id="pay-button" class="pay-button" th:attr="data-reservation-id=${reservation.id}">
+        Bayar Sekarang (Online)
+    </button>
+    <button id="cash-button" class="pay-button" style="margin-top:10px; display:none;" th:attr="data-reservation-id=${reservation.id}">
+        Konfirmasi Bayar Cash
+    </button>
+
+    <div class="loading" id="loading">
+        <p>Memproses pembayaran...</p>
+    </div>
+
+    <a href="/guest/reservasi" class="back-link">&larr; Kembali ke reservasi</a>
+</div>
+
+<script th:inline="javascript">
+    const payButton = document.getElementById('pay-button');
+    const cashButton = document.getElementById('cash-button');
+    const loading = document.getElementById('loading');
+    const reservationId = /*[[${reservation.id}]]*/ '';
+    const methodRadios = document.querySelectorAll('input[name="payMethod"]');
+    const methodNote = document.getElementById('method-note');
+
+    function updateButtons() {
+        const selected = document.querySelector('input[name="payMethod"]:checked')?.value || 'midtrans';
+        if (selected === 'cash') {
+            payButton.style.display = 'none';
+            cashButton.style.display = 'block';
+            methodNote.textContent = 'Bayar di hotel saat check-in. Tidak ada biaya online.';
+        } else {
+            payButton.style.display = 'block';
+            cashButton.style.display = 'none';
+            methodNote.textContent = 'Pembayaran diproses melalui Midtrans (online).';
+        }
+    }
+    methodRadios.forEach(r => r.addEventListener('change', updateButtons));
+    updateButtons();
+
+    payButton.addEventListener('click', function () {
+        loading.classList.add('show');
+        payButton.disabled = true;
+        cashButton.disabled = true;
+
+        fetch(`/api/payment/create/${reservationId}?method=midtrans`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then(response => response.json())
+            .then(data => {
+                loading.classList.remove('show');
+                payButton.disabled = false;
+                cashButton.disabled = false;
+
+                if (data.success && data.snapToken) {
+                    snap.pay(data.snapToken, {
+                        onSuccess: function () {
+                            window.location.href = '/payment/success?order_id=' + data.orderId;
+                        },
+                        onPending: function () {
+                            window.location.href = '/payment/pending?order_id=' + data.orderId;
+                        },
+                        onError: function () {
+                            window.location.href = '/payment/error?order_id=' + data.orderId;
+                        },
+                        onClose: function () {
+                            alert('Pembayaran dibatalkan. Anda bisa mencoba lagi.');
+                        }
+                    });
+                } else {
+                    alert('Gagal membuat transaksi: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loading.classList.remove('show');
+                payButton.disabled = false;
+                cashButton.disabled = false;
+                alert('Gagal memproses pembayaran online. Silakan coba lagi.');
+            });
+    });
+
+    cashButton.addEventListener('click', function () {
+        loading.classList.add('show');
+        cashButton.disabled = true;
+        payButton.disabled = true;
+
+        fetch(`/api/payment/create/${reservationId}?method=cash`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then(response => response.json())
+            .then(data => {
+                loading.classList.remove('show');
+                cashButton.disabled = false;
+                payButton.disabled = false;
+
+                if (data.success) {
+                    alert('Reservasi dicatat dengan metode bayar cash. Silakan lakukan pembayaran di hotel.');
+                    window.location.href = '/payment/success?order_id=' + data.orderId;
+                } else {
+                    alert('Gagal mencatat pembayaran cash: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loading.classList.remove('show');
+                cashButton.disabled = false;
+                payButton.disabled = false;
+                alert('Gagal memproses pembayaran cash. Silakan coba lagi.');
+            });
+    });
+</script>
+</body>
+</html>

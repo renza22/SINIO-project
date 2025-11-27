@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bukti Pembayaran/Booking</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 32px; color: #222; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .title { font-size: 20px; font-weight: 700; }
+        .section { border: 1px solid #ddd; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
+        .row { display: flex; justify-content: space-between; margin: 4px 0; }
+        .label { color: #666; }
+        .value { font-weight: 600; }
+        .total { font-size: 18px; font-weight: 700; }
+        .actions { margin-top: 16px; }
+        button { padding: 10px 14px; border: none; border-radius: 6px; cursor: pointer; background: #18b7a6; color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">Bukti Pembayaran/Booking</div>
+        <div th:text="${payment != null ? payment.orderId : ''}">ORD-1</div>
+    </div>
+
+    <div class="section">
+        <div class="row"><span class="label">Kode Reservasi</span><span class="value" th:text="${reservation.code}">RSV-1</span></div>
+        <div class="row"><span class="label">Kamar</span><span class="value" th:text="${reservation.room.number}">101</span></div>
+        <div class="row"><span class="label">Check-in</span><span class="value" th:text="${#temporals.format(reservation.checkIn, 'dd MMM yyyy')}">01 Jan 2025</span></div>
+        <div class="row"><span class="label">Check-out</span><span class="value" th:text="${#temporals.format(reservation.checkOut, 'dd MMM yyyy')}">02 Jan 2025</span></div>
+        <div class="row"><span class="label">Durasi</span><span class="value"><span th:text="${nights}">1</span> malam</span></div>
+    </div>
+
+    <div class="section">
+        <div class="row"><span class="label">Metode</span><span class="value" th:text="${payment != null ? payment.paymentType : 'CASH'}">CASH</span></div>
+        <div class="row"><span class="label">Status</span><span class="value" th:text="${payment != null ? payment.status : 'PENDING'}">PENDING</span></div>
+        <div class="row"><span class="label">Jumlah</span><span class="value" th:text="${#numbers.formatDecimal(paymentAmount,0,'POINT',2,'COMMA')}">0</span></div>
+        <div class="row"><span class="label">Dibuat</span><span class="value" th:text="${payment != null && payment.createdAt != null ? #temporals.format(payment.createdAt, 'dd MMM yyyy HH:mm') : '-'}">-</span></div>
+        <div class="row"><span class="label">Waktu transaksi</span><span class="value" th:text="${payment != null && payment.transactionTime != null ? #temporals.format(payment.transactionTime, 'dd MMM yyyy HH:mm') : '-'}">-</span></div>
+        <div class="row" th:if="${payment != null && payment.transactionId != null}"><span class="label">Transaksi ID</span><span class="value" th:text="${payment.transactionId}">trx</span></div>
+    </div>
+
+    <div class="section">
+        <div class="row"><span class="label">Tarif kamar</span><span class="value" th:text="${#numbers.formatDecimal(reservation.room.rate,0,'POINT',2,'COMMA')}">0</span></div>
+        <div class="row"><span class="label">Total kamar</span><span class="value" th:text="${#numbers.formatDecimal(roomTotal,0,'POINT',2,'COMMA')}">0</span></div>
+        <div class="row"><span class="label">Total layanan</span><span class="value" th:text="${#numbers.formatDecimal(serviceTotal,0,'POINT',2,'COMMA')}">0</span></div>
+        <div class="row total"><span>Total</span><span th:text="${#numbers.formatDecimal(paymentAmount,0,'POINT',2,'COMMA')}">0</span></div>
+        <div class="label" th:if="${payment != null && payment.paymentType != null && payment.paymentType.toUpperCase() == 'CASH'}">Pembayaran cash di hotel.</div>
+        <div class="label" th:if="${payment != null && payment.paymentType != null && payment.paymentType.toUpperCase() != 'CASH'}">Pembayaran online via Midtrans.</div>
+    </div>
+
+    <div class="actions">
+        <button onclick="window.print()">Print / Save PDF</button>
+    </div>
+</body>
+</html>

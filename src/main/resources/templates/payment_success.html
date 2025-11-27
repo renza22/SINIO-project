@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Success - SINIO Hotel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #18b7a6 0%, #0e7b71 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: #0b4e49;
+        }
+        .container {
+            background: #fff;
+            border-radius: 20px;
+            padding: 50px;
+            max-width: 520px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+            text-align: center;
+            border: 1px solid rgba(17, 154, 141, 0.12);
+        }
+        .success-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: scaleIn 0.5s ease-out;
+        }
+        @keyframes scaleIn {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
+        }
+        h1 { color: #0e7b71; margin-bottom: 15px; font-size: 32px; }
+        p { color: #4d6b68; margin-bottom: 24px; line-height: 1.6; }
+        .order-id {
+            background: #f4fffd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            font-family: monospace;
+            color: #0b4e49;
+            border: 1px solid rgba(17, 154, 141, 0.12);
+        }
+        .button {
+            display: inline-block;
+            padding: 14px 30px;
+            background: linear-gradient(135deg, #18b7a6 0%, #0e7b71 100%);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 700;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 10px 24px rgba(14, 123, 113, 0.25);
+        }
+        .button:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(14, 123, 113, 0.3); }
+        .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success-icon">✅</div>
+        <h1 th:text="${isCashPayment} ? 'Booking Berhasil' : 'Payment Successful!'">Payment Successful!</h1>
+        <p th:if="${isCashPayment}">Reservasi Anda telah dicatat. Silakan bayar secara cash di hotel saat check-in.</p>
+        <p th:unless="${isCashPayment}">Your payment has been processed successfully. Thank you for your reservation!</p>
+
+        <div class="order-id" th:if="${orderId}">
+            Order ID: <span th:text="${orderId}"></span>
+        </div>
+        <div class="order-id" th:if="${payment != null}">
+            <div><span class="label">Metode:</span> <span th:text="${payment.paymentType}">MIDTRANS</span></div>
+            <div><span class="label">Jumlah:</span> <span th:text="${#numbers.formatDecimal(payment.amount,0,'POINT',2,'COMMA')}">0</span></div>
+            <div th:if="${reservation != null}"><span class="label">Reservasi:</span> <span th:text="${reservation.code}">RSV-1</span></div>
+        </div>
+        <div class="actions" style="margin-top: 14px;">
+            <a href="/guest/reservasi" class="button">View My Reservations</a>
+            <a th:if="${receiptLink != null}" th:href="${receiptLink}" target="_blank" class="button" style="margin-left:8px; background:#0e7b71;">Unduh Bukti</a>
+        </div>
+    </div>
+</body>
+</html>

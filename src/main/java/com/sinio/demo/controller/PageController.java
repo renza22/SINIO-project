@@ -10,7 +10,9 @@ import com.sinio.demo.dto.RegisterRequest;
 import com.sinio.demo.dto.RoomRequest;
 import com.sinio.demo.dto.ReservationRequest;
 import com.sinio.demo.dto.RoomSummaryView;
+import com.sinio.demo.model.Reservation;
 import com.sinio.demo.model.Room;
+import com.sinio.demo.model.Payment;
 import com.sinio.demo.model.User;
 import com.sinio.demo.model.UserRole;
 import com.sinio.demo.model.RoomStatus;
@@ -18,8 +20,11 @@ import com.sinio.demo.model.RoomType;
 import com.sinio.demo.service.RoomService;
 import com.sinio.demo.service.ReservationService;
 import com.sinio.demo.service.UserService;
+import com.sinio.demo.service.PaymentService;
 import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -44,11 +49,13 @@ public class PageController {
     private final UserService userService;
     private final RoomService roomService;
     private final ReservationService reservationService;
+    private final PaymentService paymentService;
 
-    public PageController(UserService userService, RoomService roomService, ReservationService reservationService) {
+    public PageController(UserService userService, RoomService roomService, ReservationService reservationService, PaymentService paymentService) {
         this.userService = userService;
         this.roomService = roomService;
         this.reservationService = reservationService;
+        this.paymentService = paymentService;
     }
 
     @GetMapping("/")
@@ -201,6 +208,7 @@ public class PageController {
                 model.addAttribute("room", room);
                 model.addAttribute("amenities", roomService.resolveAmenities(room));
                 model.addAttribute("services", roomService.resolveServiceOptions(room));
+                model.addAttribute("midtransClientKey", paymentService.getClientKey());
                 return "guest_kamar_detail";
             })
             .orElseGet(() -> {
@@ -235,11 +243,12 @@ public class PageController {
 
     // ---- Guest: create reservation ----
     @PostMapping("/guest/reservasi")
-    public String createReservation(
+    public Object createReservation(
         @Valid @ModelAttribute("reservationRequest") ReservationRequest reservationRequest,
         BindingResult bindingResult,
         HttpSession session,
-        RedirectAttributes redirectAttributes
+        RedirectAttributes redirectAttributes,
+        HttpServletRequest httpRequest
     ) {
         String redirect = guardRole(session, redirectAttributes, UserRole.TAMU);
         if (redirect != null) {
@@ -248,15 +257,33 @@ public class PageController {
         Long userId = (Long) session.getAttribute("userId");
 
         if (bindingResult.hasErrors()) {
+            if (acceptsJson(httpRequest)) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Input reservasi tidak valid."
+                ));
+            }
             redirectAttributes.addFlashAttribute("guestError", "Input reservasi tidak valid.");
             return "redirect:/guest/kamar/" + reservationRequest.getRoomId();
         }
 
         try {
-            reservationService.create(userId, reservationRequest);
-            redirectAttributes.addFlashAttribute("guestMessage", "Reservasi berhasil dibuat.");
-            return "redirect:/guest/reservasi";
+            Reservation reservation = reservationService.create(userId, reservationRequest);
+            if (acceptsJson(httpRequest)) {
+                return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "reservationId", reservation.getId()
+                ));
+            }
+            redirectAttributes.addFlashAttribute("guestMessage", "Reservasi berhasil dibuat. Silakan lanjutkan pembayaran.");
+            return "redirect:/guest/payment/" + reservation.getId();
         } catch (IllegalArgumentException ex) {
+            if (acceptsJson(httpRequest)) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", ex.getMessage()
+                ));
+            }
             redirectAttributes.addFlashAttribute("guestError", ex.getMessage());
             return "redirect:/guest/kamar/" + reservationRequest.getRoomId();
         }
@@ -278,6 +305,9 @@ public class PageController {
             .map(r -> {
                 populateCommonModel(session, model);
                 model.addAttribute("reservation", r);
+                Payment payment = paymentService.getLatestPaymentForReservation(r.getId());
+                model.addAttribute("payment", payment);
+                model.addAttribute("payments", paymentService.getPaymentsByReservationId(r.getId()));
                 return "guest_reservasi_detail";
             })
             .orElseGet(() -> {
@@ -823,6 +853,11 @@ public class PageController {
     private void populateCommonModel(HttpSession session, Model model) {
         model.addAttribute("userName", session.getAttribute("userName"));
         model.addAttribute("userEmail", session.getAttribute("userEmail"));
+    }
+
+    private boolean acceptsJson(HttpServletRequest request) {
+        String accept = request.getHeader("Accept");
+        return accept != null && accept.contains("application/json");
     }
 
     private void populateGuestModel(HttpSession session, Model model) {
