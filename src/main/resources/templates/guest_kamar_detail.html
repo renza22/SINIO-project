@@ -241,28 +241,6 @@
     </div>
   </main>
 
-  <!-- Payment Modal -->
-  <div id="paymentModal" class="modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); backdrop-filter: blur(4px); z-index:1050; align-items:center; justify-content:center; padding:16px;">
-    <div class="modal-card glass" style="max-width:640px; width:100%; background:#fff; border-radius:16px; padding:24px; box-shadow:0 20px 60px rgba(0,0,0,0.35);">
-      <div class="d-flex justify-content-between align-items-start mb-3">
-        <div>
-          <h5 class="mb-1">Pembayaran Reservasi</h5>
-          <div class="text-muted small">Pilih cara bayar: online via Midtrans atau bayar cash di hotel.</div>
-        </div>
-        <button type="button" id="closeModalBtn" class="btn btn-sm btn-outline-secondary">&times;</button>
-      </div>
-      <div class="mb-3">
-        <div class="d-flex justify-content-between"><span class="text-muted small">Reservasi</span><span class="fw-semibold" id="modalResvCode">-</span></div>
-        <div class="d-flex justify-content-between"><span class="text-muted small">Total estimasi</span><span class="fw-semibold" id="modalTotal">-</span></div>
-      </div>
-      <div class="d-grid gap-2">
-        <button type="button" id="btnPayOnline" class="btn btn-tosca">Bayar Sekarang (Online)</button>
-        <button type="button" id="btnPayCash" class="btn btn-outline-tosca">Konfirmasi Bayar Cash</button>
-      </div>
-      <div class="text-center small text-muted mt-3" id="modalLoading" style="display:none;">Memproses...</div>
-    </div>
-  </div>
-
   <script>
     (function () {
       const summaryCard = document.getElementById('reservationSummary');
@@ -274,16 +252,7 @@
       const checkboxes = document.querySelectorAll('.service-checkbox');
       const summaryList = document.getElementById('selectedServiceList');
       const totalEl = document.getElementById('summaryTotal');
-      const form = document.getElementById('guestReservationForm');
-      const paymentModal = document.getElementById('paymentModal');
-      const closeModalBtn = document.getElementById('closeModalBtn');
-      const modalResvCode = document.getElementById('modalResvCode');
-      const modalTotal = document.getElementById('modalTotal');
-      const btnPayOnline = document.getElementById('btnPayOnline');
-      const btnPayCash = document.getElementById('btnPayCash');
-      const modalLoading = document.getElementById('modalLoading');
       let lastTotal = 0;
-      let reservationId = null;
 
       function renderSummary() {
         // hitung lama inap
@@ -322,116 +291,10 @@
         }
       }
 
-      function showModal(resId) {
-        reservationId = resId;
-        modalResvCode.textContent = 'RSV-' + resId;
-        modalTotal.textContent = formatter.format(lastTotal);
-        paymentModal.style.display = 'flex';
-      }
-
-      function hideModal() {
-        paymentModal.style.display = 'none';
-      }
-
-      form.addEventListener('submit', function (e) {
-        e.preventDefault();
-        const formData = new FormData(form);
-        fetch('/guest/reservasi', {
-          method: 'POST',
-          headers: { 'Accept': 'application/json' },
-          body: formData
-        }).then(resp => resp.json())
-          .then(data => {
-            if (data.success) {
-              showModal(data.reservationId);
-            } else {
-              alert(data.message || 'Gagal membuat reservasi.');
-            }
-          })
-          .catch(err => {
-            console.error(err);
-            alert('Gagal membuat reservasi.');
-          });
-      });
-
-      btnPayOnline.addEventListener('click', function () {
-        if (!reservationId) return;
-        modalLoading.style.display = 'block';
-        btnPayOnline.disabled = true;
-        btnPayCash.disabled = true;
-        fetch(`/api/payment/create/${reservationId}?method=midtrans`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        }).then(resp => resp.json())
-          .then(data => {
-            modalLoading.style.display = 'none';
-            btnPayOnline.disabled = false;
-            btnPayCash.disabled = false;
-            if (data.success && data.snapToken) {
-              snap.pay(data.snapToken, {
-                onSuccess: function () {
-                  window.location.href = '/payment/success?order_id=' + data.orderId;
-                },
-                onPending: function () {
-                  window.location.href = '/payment/pending?order_id=' + data.orderId;
-                },
-                onError: function () {
-                  window.location.href = '/payment/error?order_id=' + data.orderId;
-                },
-                onClose: function () {
-                  alert('Pembayaran dibatalkan. Anda bisa mencoba lagi.');
-                }
-              });
-            } else {
-              alert(data.message || 'Gagal membuat transaksi online.');
-            }
-          })
-          .catch(err => {
-            console.error(err);
-            modalLoading.style.display = 'none';
-            btnPayOnline.disabled = false;
-            btnPayCash.disabled = false;
-            alert('Gagal memproses pembayaran online.');
-          });
-      });
-
-      btnPayCash.addEventListener('click', function () {
-        if (!reservationId) return;
-        modalLoading.style.display = 'block';
-        btnPayOnline.disabled = true;
-        btnPayCash.disabled = true;
-        fetch(`/api/payment/create/${reservationId}?method=cash`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        }).then(resp => resp.json())
-          .then(data => {
-            modalLoading.style.display = 'none';
-            btnPayOnline.disabled = false;
-            btnPayCash.disabled = false;
-            if (data.success) {
-              alert('Reservasi dicatat dengan bayar cash. Silakan bayar di hotel.');
-              window.location.href = '/payment/success?order_id=' + data.orderId;
-            } else {
-              alert(data.message || 'Gagal mencatat pembayaran cash.');
-            }
-          })
-          .catch(err => {
-            console.error(err);
-            modalLoading.style.display = 'none';
-            btnPayOnline.disabled = false;
-            btnPayCash.disabled = false;
-            alert('Gagal memproses pembayaran cash.');
-          });
-      });
-
-      closeModalBtn.addEventListener('click', hideModal);
-
       checkboxes.forEach(cb => cb.addEventListener('change', renderSummary));
       renderSummary();
     })();
   </script>
-    <script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js"
-    th:attr="data-client-key=${midtransClientKey}"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 

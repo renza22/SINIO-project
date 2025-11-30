@@ -7,6 +7,7 @@ import com.midtrans.service.MidtransSnapApi;
 import com.sinio.demo.model.Payment;
 import com.sinio.demo.model.PaymentStatus;
 import com.sinio.demo.model.Reservation;
+import com.sinio.demo.model.ReservationStatus;
 import com.sinio.demo.model.Room;
 import com.sinio.demo.repository.PaymentRepository;
 import com.sinio.demo.repository.ReservationRepository;
@@ -298,6 +299,41 @@ public class PaymentService {
     public Payment getLatestPaymentForReservation(Long reservationId) {
         return paymentRepository.findTop1ByReservationIdOrderByCreatedAtDesc(reservationId)
             .orElse(null);
+    }
+
+    /**
+     * Tagihan yang masih harus dibayar oleh tamu (menggabungkan reservasi yang belum lunas).
+     */
+    public List<Map<String, Object>> getPendingBillsForUser(Long userId) {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+        List<Reservation> reservations = reservationRepository.findByUser_IdOrderByCreatedAtDesc(userId);
+        List<Map<String, Object>> bills = new ArrayList<>();
+        for (Reservation r : reservations) {
+            if (r.getStatus() == ReservationStatus.CANCELED || r.getStatus() == ReservationStatus.CHECKED_OUT) {
+                continue; // abaikan yang sudah selesai/dibatalkan
+            }
+            if (r.getRoom() == null) {
+                continue; // data tidak lengkap, jangan tampilkan
+            }
+            Payment latest = getLatestPaymentForReservation(r.getId());
+            if (latest != null && latest.getStatus() == PaymentStatus.SUCCESS) {
+                continue; // sudah lunas
+            }
+            BigDecimal amount = calculateTotalAmount(r);
+            Map<String, Object> m = new HashMap<>();
+            m.put("reservationId", r.getId());
+            m.put("kode", r.getCode());
+            m.put("kamar", r.getRoom() != null ? r.getRoom().getNumber() : "-");
+            m.put("tipe", r.getRoom() != null && r.getRoom().getType() != null ? r.getRoom().getType().getDisplayName() : "-");
+            m.put("periode", fmt.format(r.getCheckIn()) + " - " + fmt.format(r.getCheckOut()));
+            m.put("status", r.getStatus().name());
+            m.put("paymentStatus", latest != null ? latest.getStatus().name() : PaymentStatus.PENDING.name());
+            m.put("paymentType", latest != null ? latest.getPaymentType() : null);
+            m.put("orderId", latest != null ? latest.getOrderId() : null);
+            m.put("amount", amount);
+            bills.add(m);
+        }
+        return bills;
     }
 
     public Payment staffConfirmPayment(Long paymentId) {

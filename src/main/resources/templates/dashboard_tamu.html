@@ -177,11 +177,37 @@
                 <span class="badge rounded-pill" th:classappend="${invoice.status=='LUNAS'?' text-bg-success':(invoice.status=='DRAFT'?' text-bg-secondary':' text-bg-warning')}" th:text="${invoice.status}">TERBIT</span>
               </div>
             </div>
-            <a class="btn btn-tosca w-100" th:href="@{/guest/tagihan/{id}/bayar(id=${invoice.invoiceId})}">
-              <i class="bi bi-credit-card"></i> Bayar Sekarang
+            <a class="btn btn-tosca w-100" th:href="@{/guest/tagihan}">
+              <i class="bi bi-credit-card"></i> Buka Tagihan & Pembayaran
             </a>
           </div>
           <div th:if="${invoice == null}" class="text-muted">Belum ada tagihan.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail kamar yang dipesan -->
+    <div class="col-12">
+      <div class="card glass">
+        <div class="card-header"><strong class="text-tosca">Detail Kamar yang Dipesan</strong></div>
+        <div class="card-body">
+          <div th:if="${aktif != null}">
+            <div class="row gy-2">
+              <div class="col-12 col-md-4">
+                <div class="text-muted small">Nomor Kamar</div>
+                <div class="fw-semibold" th:text="${aktif.nomorKamar}">301</div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div class="text-muted small">Tipe Kamar</div>
+                <div class="fw-semibold" th:text="${aktif.namaTipe}">Deluxe</div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div class="text-muted small">Harga per Malam</div>
+                <div class="fw-semibold" th:text="${#numbers.formatDecimal(aktif.hargaPerMalam,0,'POINT',2,'COMMA')}">800.000</div>
+              </div>
+            </div>
+          </div>
+          <div th:if="${aktif == null}" class="text-muted">Belum ada kamar yang dipesan saat ini.</div>
         </div>
       </div>
     </div>

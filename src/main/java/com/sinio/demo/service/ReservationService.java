@@ -165,6 +165,7 @@ public class ReservationService {
         m.put("checkoutRencana", r.getCheckOut());
         m.put("nomorKamar", room.getNumber());
         m.put("namaTipe", room.getType().getDisplayName());
+        m.put("hargaPerMalam", room.getRate());
         m.put("status", r.getStatus().name());
         String badge = switch (r.getStatus()) {
             case PENDING_PAYMENT -> "secondary";

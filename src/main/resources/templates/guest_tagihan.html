@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="id" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tagihan & Pembayaran - SINIO</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body{ background: linear-gradient(180deg,#f7fffe 0%,#f9fffd 60%,#f7fffe 100%); color:#0b4e49; }
+    .navbar-glass{ backdrop-filter: blur(10px); background: rgba(255,255,255,.65) !important; border-bottom:1px solid rgba(0,0,0,.04); }
+    .glass{ backdrop-filter: blur(14px) saturate(120%); background: rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.4); box-shadow: 0 6px 28px rgba(0,0,0,.12); border-radius:1rem; }
+    .btn-tosca{ --bs-btn-bg:#18b7a6; --bs-btn-border-color:#18b7a6; --bs-btn-hover-bg:#119a8d; --bs-btn-hover-border-color:#119a8d; --bs-btn-color:#fff; --bs-btn-focus-shadow-rgb:24,183,166; }
+    .btn-outline-tosca{ --bs-btn-color:#0e7b71; --bs-btn-border-color:#18b7a6; --bs-btn-hover-bg:#18b7a6; --bs-btn-hover-border-color:#18b7a6; --bs-btn-focus-shadow-rgb:24,183,166; }
+    .badge-soft{ background: rgba(24,183,166,.15); color:#0e7b71; }
+    .table-hover tbody tr:hover{ background: rgba(24,183,166,.08); }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-glass sticky-top">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="/guest">SINIO</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#navGuest">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="offcanvas offcanvas-end" id="navGuest">
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title">Menu</h5>
+        <button class="btn-close" data-bs-dismiss="offcanvas"></button>
+      </div>
+      <div class="offcanvas-body">
+        <ul class="navbar-nav ms-auto gap-2">
+          <li class="nav-item"><a class="nav-link" href="/guest">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="/guest/reservasi">Reservasi Saya</a></li>
+          <li class="nav-item"><a class="nav-link active fw-semibold" href="/guest/tagihan">Tagihan & Pembayaran</a></li>
+          <li class="nav-item"><a class="nav-link" href="/guest/layanan">Pesan Layanan</a></li>
+          <li class="nav-item"><a class="nav-link" href="/guest/akun">Akun</a></li>
+          <li class="nav-item"><a class="nav-link" href="/logout" onclick="return confirm('Yakin ingin keluar dari akun?');">Keluar</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<main class="container p-3 p-md-4">
+  <div class="mb-3" th:if="${guestMessage}">
+    <div class="alert alert-success glass border-0 mb-0 d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-check-circle-fill"></i>
+      <span th:text="${guestMessage}">Reservasi dicatat.</span>
+    </div>
+  </div>
+  <div class="mb-3" th:if="${guestError}">
+    <div class="alert alert-danger glass border-0 mb-0 d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <span th:text="${guestError}">Terjadi kesalahan.</span>
+    </div>
+  </div>
+
+  <div class="glass p-3 p-md-4 mb-3">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3">
+      <div>
+        <div class="small text-muted">Total yang harus dibayar</div>
+        <div class="display-6 fw-semibold" th:text="${#numbers.formatDecimal(totalDue,0,'POINT',2,'COMMA')}">0</div>
+        <div class="text-muted small">Gabungan semua reservasi yang belum lunas.</div>
+      </div>
+      <div class="text-end">
+        <a class="btn btn-tosca" href="/guest/reservasi"><i class="bi bi-journal-text"></i> Lihat Reservasi</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card glass">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong>Tagihan & Pembayaran</strong>
+      <small class="text-muted">Selesaikan pembayaran untuk konfirmasi</small>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+          <tr>
+            <th>Reservasi</th>
+            <th>Periode</th>
+            <th>Kamar</th>
+            <th>Total</th>
+            <th>Status</th>
+            <th class="text-end">Aksi</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="b : ${bills}">
+            <td>
+              <div class="fw-semibold" th:text="${b.kode}">RSV-0001</div>
+              <div class="small text-muted" th:text="${b.tipe}">Deluxe</div>
+            </td>
+            <td th:text="${b.periode}">21 Sep - 23 Sep</td>
+            <td th:text="${b.kamar}">301</td>
+            <td class="fw-semibold" th:text="${#numbers.formatDecimal(b.amount,0,'POINT',2,'COMMA')}">1.200.000</td>
+            <td>
+              <span class="badge rounded-pill badge-soft" th:text="${b.paymentStatus}">PENDING</span>
+            </td>
+            <td class="text-end">
+              <div class="d-flex flex-wrap justify-content-end gap-2">
+                <button type="button" class="btn btn-sm btn-tosca btn-pay-online"
+                        th:data-reservation="${b.reservationId}"><i class="bi bi-credit-card"></i> e-payment</button>
+                <button type="button" class="btn btn-sm btn-outline-tosca btn-pay-cash"
+                        th:data-reservation="${b.reservationId}"><i class="bi bi-cash-coin"></i> Bayar di Hotel</button>
+              </div>
+            </td>
+          </tr>
+          <tr th:if="${#lists.isEmpty(bills)}">
+            <td colspan="6" class="text-center text-muted py-4">Tidak ada tagihan yang perlu dibayar.</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  (function() {
+    const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
+
+    function setLoading(btn, loading) {
+      if (!btn) return;
+      if (loading) {
+        btn.dataset.label = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Memproses...';
+        btn.disabled = true;
+      } else {
+        if (btn.dataset.label) {
+          btn.innerHTML = btn.dataset.label;
+        }
+        btn.disabled = false;
+      }
+    }
+
+    function pay(reservationId, method, btn) {
+      if (!reservationId) return;
+      setLoading(btn, true);
+      fetch(`/api/payment/create/${reservationId}?method=${method}`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        .then(resp => resp.json())
+        .then(data => {
+          if (!data.success) {
+            alert(data.message || 'Gagal memproses pembayaran.');
+            return;
+          }
+          if (method === 'midtrans') {
+            if (!data.snapToken) {
+              alert('Token pembayaran tidak tersedia.');
+              return;
+            }
+            snap.pay(data.snapToken, {
+              onSuccess: function () { window.location.href = '/payment/success?order_id=' + data.orderId; },
+              onPending: function () { window.location.href = '/payment/pending?order_id=' + data.orderId; },
+              onError: function () { window.location.href = '/payment/error?order_id=' + data.orderId; },
+              onClose: function () { alert('Pembayaran dibatalkan. Anda bisa mencoba lagi dari halaman ini.'); }
+            });
+          } else {
+            alert('Reservasi dicatat dengan bayar cash. Silakan selesaikan pembayaran di hotel.');
+            window.location.href = '/payment/success?order_id=' + data.orderId;
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          alert('Terjadi kesalahan saat memproses pembayaran.');
+        })
+        .finally(() => setLoading(btn, false));
+    }
+
+    document.addEventListener('click', function (e) {
+      if (e.target.closest('.btn-pay-online')) {
+        const btn = e.target.closest('.btn-pay-online');
+        pay(btn.dataset.reservation, 'midtrans', btn);
+      }
+      if (e.target.closest('.btn-pay-cash')) {
+        const btn = e.target.closest('.btn-pay-cash');
+        pay(btn.dataset.reservation, 'cash', btn);
+      }
+    });
+  })();
+</script>
+<script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js"
+        th:attr="data-client-key=${midtransClientKey}"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

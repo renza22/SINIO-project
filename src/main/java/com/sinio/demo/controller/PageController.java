@@ -211,7 +211,6 @@ public class PageController {
                 model.addAttribute("room", room);
                 model.addAttribute("amenities", roomService.resolveAmenities(room));
                 model.addAttribute("services", roomService.resolveServiceOptions(room));
-                model.addAttribute("midtransClientKey", paymentService.getClientKey());
                 return "guest_kamar_detail";
             })
             .orElseGet(() -> {
@@ -266,6 +265,27 @@ public class PageController {
         return "guest_reservasi";
     }
 
+    @GetMapping("/guest/tagihan")
+    public String guestBilling(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.TAMU);
+        if (redirect != null) {
+            return redirect;
+        }
+        populateCommonModel(session, model);
+        Long userId = requireUserId(session, redirectAttributes);
+        if (userId == null) {
+            return "redirect:/login";
+        }
+        List<Map<String, Object>> bills = paymentService.getPendingBillsForUser(userId);
+        java.math.BigDecimal totalDue = bills.stream()
+            .map(b -> (java.math.BigDecimal) b.getOrDefault("amount", java.math.BigDecimal.ZERO))
+            .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        model.addAttribute("bills", bills);
+        model.addAttribute("totalDue", totalDue);
+        model.addAttribute("midtransClientKey", paymentService.getClientKey());
+        return "guest_tagihan";
+    }
+
     @GetMapping("/guest/layanan")
     public String guestServices(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
         return guestDashboard(session, redirectAttributes, model);
@@ -302,11 +322,12 @@ public class PageController {
             if (acceptsJson(httpRequest)) {
                 return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "reservationId", reservation.getId()
+                    "reservationId", reservation.getId(),
+                    "redirect", "/guest/tagihan"
                 ));
             }
-            redirectAttributes.addFlashAttribute("guestMessage", "Reservasi dicatat dan menunggu pembayaran. Selesaikan pembayaran untuk mengonfirmasi.");
-            return "redirect:/guest/payment/" + reservation.getId();
+            redirectAttributes.addFlashAttribute("guestMessage", "Reservasi dicatat. Lanjutkan pembayaran melalui menu Tagihan & Pembayaran.");
+            return "redirect:/guest/tagihan";
         } catch (IllegalArgumentException ex) {
             if (acceptsJson(httpRequest)) {
                 return ResponseEntity.badRequest().body(Map.of(
