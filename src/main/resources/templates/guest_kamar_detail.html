@@ -133,6 +133,8 @@
           <div th:text="${room.type.displayName}">Deluxe King</div>
           <div class="small text-muted mt-2">Tarif per malam</div>
           <div class="fw-semibold" th:text="${#numbers.formatDecimal(room.rate,0,'POINT',2,'COMMA')}">800.000</div>
+          <div class="small text-muted mt-2">Kapasitas maksimal</div>
+          <div th:text="${room.maxOccupancy != null ? room.maxOccupancy + ' orang' : '-'}">2 orang</div>
           <div class="small text-muted mt-2">Status</div>
           <span class="badge"
             th:classappend="${room.status.name()=='AVAILABLE' ? ' text-bg-success' : (room.status.name()=='BOOKED' ? ' text-bg-warning' : ' text-bg-secondary') }"

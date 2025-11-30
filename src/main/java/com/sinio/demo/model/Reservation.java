@@ -21,6 +21,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 
 @Entity
 @Table(name = "reservations")
@@ -38,6 +40,7 @@ public class Reservation {
     private User user;
 
     @ManyToOne(optional = false, fetch = FetchType.EAGER)
+    @NotFound(action = NotFoundAction.IGNORE)
     @JoinColumn(name = "room_id", nullable = false)
     private Room room; // legacy single-room shortcut to keep existing views working
 
@@ -49,7 +52,7 @@ public class Reservation {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private ReservationStatus status = ReservationStatus.BOOKED;
+    private ReservationStatus status = ReservationStatus.PENDING_PAYMENT;
 
     @OneToMany(
         mappedBy = "reservation",

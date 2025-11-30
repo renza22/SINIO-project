@@ -415,6 +415,7 @@
             <tr>
               <th>Nomor</th>
               <th>Tipe</th>
+              <th>Kapasitas</th>
               <th>Tarif</th>
               <th>Status</th>
               <th>Catatan</th>
@@ -428,6 +429,7 @@
                         data-room-type=${room.type},
                         data-room-status=${room.status},
                         data-room-rate=${room.rate},
+                        data-room-capacity=${room.maxOccupancy},
                         data-room-note=${room.note},
                         data-room-cleaned=${room.lastCleanedAt != null ? #temporals.format(room.lastCleanedAt, 'yyyy-MM-dd''T''HH:mm') : ''}">
               <td class="fw-semibold" th:text="${room.number}">A101</td>
@@ -438,6 +440,7 @@
                   2 jam lalu
                 </div>
               </td>
+              <td class="fw-semibold" th:text="${room.maxOccupancy + ' org'}">2 org</td>
               <td class="fw-semibold" th:text="${room.rate != null ? 'Rp' + #numbers.formatDecimal(room.rate, 0, 'POINT', 0, 'COMMA') : 'Rp0'}">Rp650.000</td>
               <td>
                 <span class="badge-status available"
@@ -456,10 +459,10 @@
                                    data-type=${room.type},
                                    data-status=${room.status},
                                    data-rate=${room.rate},
+                                   data-capacity=${room.maxOccupancy},
                                    data-note=${room.note},
                                    data-cleaned=${room.lastCleanedAt != null ? #temporals.format(room.lastCleanedAt, 'yyyy-MM-dd''T''HH:mm') : ''},
-                                   data-amenities=${room.amenities != null ? #strings.listJoin(room.amenities.![name], '\n') : ''},
-                                   data-services=${room.serviceOptions != null ? #strings.listJoin(room.serviceOptions.![name + ' | ' + unit + ' | ' + (price != null ? price : 0)], '\n') : ''}">
+                                   data-amenities=${room.amenities != null ? #strings.listJoin(room.amenities.![name], '\n') : ''}">
                     <i class="bi bi-pencil-square"></i><span>Edit</span>
                   </button>
                   <button class="btn btn-outline-brand d-flex align-items-center gap-1"
@@ -551,6 +554,19 @@
                      placeholder="650000">
               <div class="invalid-feedback" th:if="${#fields.hasErrors('rate')}" th:errors="*{rate}">Tarif tidak valid</div>
             </div>
+            <div class="col-md-4">
+              <label class="form-label" for="createRoomCapacity">Kapasitas (orang)</label>
+              <input id="createRoomCapacity"
+                     type="number"
+                     min="1"
+                     max="10"
+                     step="1"
+                     class="form-control"
+                     th:field="*{maxOccupancy}"
+                     th:classappend="${#fields.hasErrors('maxOccupancy')} ? ' is-invalid' : ''"
+                     placeholder="2">
+              <div class="invalid-feedback" th:if="${#fields.hasErrors('maxOccupancy')}" th:errors="*{maxOccupancy}">Kapasitas tidak valid</div>
+            </div>
             <div class="col-md-6">
               <label class="form-label" for="createRoomStatus">Status</label>
               <select id="createRoomStatus"
@@ -591,15 +607,10 @@
               <div class="form-text">Klik pilihan di atas untuk menambah/menghapus, atau ketik manual satu fasilitas per baris.</div>
             </div>
             <div class="col-12">
-              <label class="form-label" for="createRoomServices">Layanan Berbayar</label>
-              <textarea id="createRoomServices"
-                        class="form-control"
-                        rows="4"
-                        th:field="*{servicesText}"
-                        th:classappend="${#fields.hasErrors('servicesText')} ? ' is-invalid' : ''"
-                        placeholder="Laundry | kg | 25000&#10;Room dining | porsi | 60000"></textarea>
-              <div class="invalid-feedback" th:if="${#fields.hasErrors('servicesText')}" th:errors="*{servicesText}">Layanan tidak valid</div>
-              <div class="form-text">Format: <code>Nama Layanan | Satuan | Harga</code>. Harga disimpan ke database kamar.</div>
+              <div class="alert alert-info d-flex align-items-center gap-2 mb-0">
+                <i class="bi bi-info-circle"></i>
+                <span>Layanan berbayar kini dikelola di menu <strong>Kelola Layanan</strong>. Gunakan tombol pada daftar kamar untuk menambah atau mengubah layanan.</span>
+              </div>
             </div>
             <div class="col-12">
               <label class="form-label" for="createRoomNote">Catatan</label>
@@ -671,6 +682,18 @@
                      th:classappend="${#fields.hasErrors('rate')} ? ' is-invalid' : ''">
               <div class="invalid-feedback" th:if="${#fields.hasErrors('rate')}" th:errors="*{rate}">Tarif tidak valid</div>
             </div>
+            <div class="col-md-4">
+              <label class="form-label" for="editRoomCapacity">Kapasitas (orang)</label>
+              <input id="editRoomCapacity"
+                     type="number"
+                     min="1"
+                     max="10"
+                     step="1"
+                     class="form-control"
+                     th:field="*{maxOccupancy}"
+                     th:classappend="${#fields.hasErrors('maxOccupancy')} ? ' is-invalid' : ''">
+              <div class="invalid-feedback" th:if="${#fields.hasErrors('maxOccupancy')}" th:errors="*{maxOccupancy}">Kapasitas tidak valid</div>
+            </div>
             <div class="col-md-6">
               <label class="form-label" for="editRoomStatus">Status</label>
               <select id="editRoomStatus"
@@ -710,14 +733,10 @@
               <div class="form-text">Klik pilihan di atas untuk menambah/menghapus, atau ketik manual satu fasilitas per baris.</div>
             </div>
             <div class="col-12">
-              <label class="form-label" for="editRoomServices">Layanan Berbayar</label>
-              <textarea id="editRoomServices"
-                        class="form-control"
-                        rows="4"
-                        th:field="*{servicesText}"
-                        th:classappend="${#fields.hasErrors('servicesText')} ? ' is-invalid' : ''"></textarea>
-              <div class="invalid-feedback" th:if="${#fields.hasErrors('servicesText')}" th:errors="*{servicesText}">Layanan tidak valid</div>
-              <div class="form-text">Format tetap: <code>Nama | Satuan | Harga</code>. Pisahkan antar layanan per baris.</div>
+              <div class="alert alert-info d-flex align-items-center gap-2 mb-0">
+                <i class="bi bi-info-circle"></i>
+                <span>Layanan berbayar dikelola terpisah di halaman <strong>Layanan</strong>. Buka menu tersebut untuk menambah atau mengedit layanan kamar.</span>
+              </div>
             </div>
             <div class="col-12">
               <label class="form-label" for="editRoomNote">Catatan</label>
@@ -827,10 +846,10 @@
           const type = trigger.getAttribute('data-type') ?? '';
           const status = trigger.getAttribute('data-status') ?? '';
           const rate = trigger.getAttribute('data-rate') ?? '';
+          const capacity = trigger.getAttribute('data-capacity') ?? '';
           const note = trigger.getAttribute('data-note') ?? '';
           const cleaned = trigger.getAttribute('data-cleaned') ?? '';
           const amenities = trigger.getAttribute('data-amenities') ?? '';
-          const services = trigger.getAttribute('data-services') ?? '';
 
       if (actionTemplate && id) {
         editForm.setAttribute('action', actionTemplate.replace('__ID__', id));
@@ -841,19 +860,19 @@
       const typeSelect = editForm.querySelector('#editRoomType');
       const statusSelect = editForm.querySelector('#editRoomStatus');
           const rateInput = editForm.querySelector('#editRoomRate');
+          const capacityInput = editForm.querySelector('#editRoomCapacity');
           const noteInput = editForm.querySelector('#editRoomNote');
           const cleanedInput = editForm.querySelector('#editRoomCleaned');
           const amenitiesInput = editForm.querySelector('#editRoomAmenities');
-          const servicesInput = editForm.querySelector('#editRoomServices');
 
       if (numberInput && !numberInput.classList.contains('is-invalid')) numberInput.value = number;
       if (typeSelect && !typeSelect.classList.contains('is-invalid')) typeSelect.value = type;
       if (statusSelect && !statusSelect.classList.contains('is-invalid')) statusSelect.value = status;
       if (rateInput && !rateInput.classList.contains('is-invalid')) rateInput.value = rate;
+          if (capacityInput && !capacityInput.classList.contains('is-invalid')) capacityInput.value = capacity;
           if (noteInput && !noteInput.classList.contains('is-invalid')) noteInput.value = note ?? '';
           if (cleanedInput && !cleanedInput.classList.contains('is-invalid')) cleanedInput.value = cleaned;
           if (amenitiesInput && !amenitiesInput.classList.contains('is-invalid')) amenitiesInput.value = amenities;
-          if (servicesInput && !servicesInput.classList.contains('is-invalid')) servicesInput.value = services;
         });
       }
 

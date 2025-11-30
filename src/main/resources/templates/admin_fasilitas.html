@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="id" data-bs-theme="light" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kelola Fasilitas | SINIO Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root{ --brand-primary:#689F99; --brand-secondary:#1F4F4A; }
+    body{
+      background: linear-gradient(180deg,#f7fbfa 0%,#ffffff 60%,#f7fbfa 100%);
+      font-family: 'Poppins', sans-serif;
+      color: var(--brand-secondary);
+      min-height:100vh;
+    }
+    .navbar-sinio{ background: rgba(255,255,255,.92); border-bottom:1px solid rgba(104,159,153,.18); }
+    .card-glass{ background: rgba(255,255,255,.9); border:1px solid rgba(104,159,153,.15); box-shadow:0 16px 40px rgba(79,127,122,.12); border-radius:1.25rem; }
+    .section-title{ letter-spacing:.12em; text-transform:uppercase; font-size:.82rem; color:rgba(31,79,74,.6); }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-light navbar-sinio sticky-top">
+  <div class="container-fluid px-4">
+    <a class="navbar-brand fw-semibold d-flex align-items-center gap-2" href="/dashboard/admin">
+      <i class="bi bi-arrow-left-circle"></i>
+      <span>Dashboard Admin</span>
+    </a>
+    <div class="ms-auto small text-muted d-none d-md-block">
+      <div th:text="${userName}">Administrator</div>
+      <div th:text="${userEmail}">admin@sinio.com</div>
+    </div>
+  </div>
+</nav>
+
+<main class="container py-4 py-lg-5">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+    <div>
+      <p class="section-title mb-1">Operasional</p>
+      <h1 class="h4 fw-semibold mb-0">Kelola Fasilitas Hotel</h1>
+      <div class="text-muted small">Tambah atau hapus fasilitas yang dapat dipilih pada form kamar.</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="/admin/kamar#fasilitas"><i class="bi bi-door-closed"></i> Kembali ke Kamar</a>
+  </div>
+
+  <div th:if="${facilityError != null}" class="alert alert-danger" th:text="${facilityError}">Terjadi kesalahan.</div>
+  <div th:if="${facilitySuccess != null}" class="alert alert-success" th:text="${facilitySuccess}">Berhasil.</div>
+
+  <div class="card-glass p-4 mb-4">
+    <h2 class="h6 fw-semibold mb-3">Tambah fasilitas baru</h2>
+    <form class="row g-2 align-items-end" method="post" th:action="@{/admin/fasilitas}">
+      <div class="col-12 col-md-6">
+        <label class="form-label small">Nama fasilitas</label>
+        <input type="text" name="name" class="form-control" placeholder="Wi-Fi super cepat" required>
+      </div>
+      <div class="col-12 col-md-3 d-grid">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-plus-circle"></i> Tambah</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card-glass p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <p class="section-title mb-1">Daftar Fasilitas</p>
+        <h2 class="h6 fw-semibold mb-0">Klik hapus jika sudah tidak digunakan</h2>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+        <tr>
+          <th>Nama</th>
+          <th class="text-end">Aksi</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="fac : ${facilities}">
+          <td th:text="${fac.name}">Wi-Fi</td>
+          <td class="text-end">
+            <form th:action="@{'/admin/fasilitas/' + ${fac.id} + '/delete'}" method="post" onsubmit="return confirm('Hapus fasilitas ini?');">
+              <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i> Hapus</button>
+            </form>
+          </td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(facilities)}">
+          <td colspan="2" class="text-center text-muted">Belum ada fasilitas. Tambahkan di atas.</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

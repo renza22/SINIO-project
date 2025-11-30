@@ -7,6 +7,8 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Max;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -29,6 +31,11 @@ public class RoomRequest {
 
     @NotNull(message = "Status kamar wajib dipilih.")
     private RoomStatus status;
+
+    @NotNull(message = "Kapasitas kamar wajib diisi.")
+    @Min(value = 1, message = "Kapasitas minimal 1 orang.")
+    @Max(value = 10, message = "Kapasitas maksimal 10 orang per kamar.")
+    private Integer maxOccupancy;
 
     @Size(max = 2000, message = "Catatan maksimal 2000 karakter.")
     private String note;
@@ -79,6 +86,14 @@ public class RoomRequest {
 
     public void setStatus(RoomStatus status) {
         this.status = status;
+    }
+
+    public Integer getMaxOccupancy() {
+        return maxOccupancy;
+    }
+
+    public void setMaxOccupancy(Integer maxOccupancy) {
+        this.maxOccupancy = maxOccupancy;
     }
 
     public String getNote() {

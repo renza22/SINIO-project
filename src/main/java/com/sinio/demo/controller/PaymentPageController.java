@@ -72,7 +72,7 @@ public class PaymentPageController {
         model.addAttribute("userEmail", session.getAttribute("userEmail"));
         model.addAttribute("orderId", order_id);
         try {
-            Payment payment = paymentService.getPaymentByOrderId(order_id);
+            Payment payment = paymentService.markSuccessFromClient(order_id);
             boolean isCash = payment != null && "CASH".equalsIgnoreCase(payment.getPaymentType());
             model.addAttribute("isCashPayment", isCash);
             model.addAttribute("paymentType", payment != null ? payment.getPaymentType() : null);

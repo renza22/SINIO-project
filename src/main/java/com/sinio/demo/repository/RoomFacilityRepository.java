@@ -6,4 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RoomFacilityRepository extends JpaRepository<RoomFacility, Long> {
     List<RoomFacility> findByRoom_Id(Long roomId);
+    List<RoomFacility> findByFacility_Id(Long facilityId);
 }

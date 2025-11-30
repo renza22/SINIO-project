@@ -135,22 +135,6 @@
   </div>
 
   <div class="row g-3">
-    <div class="col-12">
-      <div class="card glass">
-        <div class="card-header"><strong class="text-tosca">Fasilitas Favorit Tamu</strong></div>
-        <div class="card-body">
-          <div class="d-flex flex-wrap gap-2" th:if="${facilityOptions != null && !#lists.isEmpty(facilityOptions)}">
-            <span class="badge rounded-pill text-bg-light border"
-                  th:each="fac : ${facilityOptions}"
-                  th:text="${fac}">Wi-Fi</span>
-          </div>
-          <div class="text-muted" th:if="${facilityOptions == null || #lists.isEmpty(facilityOptions)}">
-            Belum ada data fasilitas. Cek daftar kamar untuk detail fasilitas.
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Reservasi aktif -->
     <div class="col-12 col-lg-6">
       <div class="card glass h-100">

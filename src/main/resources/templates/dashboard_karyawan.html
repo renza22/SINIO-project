@@ -125,6 +125,44 @@
       </div>
     </div>
 
+    <div class="col-12">
+      <div class="card glass h-100">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <strong class="text-tosca">Konfirmasi Pembayaran</strong>
+          <span class="text-muted small">Setelah dikonfirmasi, pendapatan tercatat di dashboard admin.</span>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover table-striped align-middle table-kaca mb-0">
+              <thead>
+                <tr>
+                  <th>Order</th><th>Reservasi</th><th>Tamu</th><th>Kamar</th><th>Metode</th><th>Jumlah</th><th class="text-end">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="p : ${pendingPayments}">
+                  <td class="fw-semibold" th:text="${p.orderId}">ORD-1</td>
+                  <td th:text="${p.kode}">RSV-1</td>
+                  <td th:text="${p.tamu}">Budi</td>
+                  <td th:text="${p.kamar}">101</td>
+                  <td th:text="${p.metode}">CASH</td>
+                  <td th:text="${#numbers.formatDecimal(p.jumlah,0,'POINT',2,'COMMA')}">0</td>
+                  <td class="text-end">
+                    <form th:action="@{/karyawan/pembayaran/{id}/confirm(id=${p.paymentId})}" method="post" class="d-inline">
+                      <button type="submit" class="btn btn-sm btn-success">Konfirmasi</button>
+                    </form>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(pendingPayments)}">
+                  <td colspan="7" class="text-center text-muted">Tidak ada pembayaran menunggu konfirmasi.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="col-12 col-lg-6">
       <div class="card glass h-100">
         <div class="card-header"><strong class="text-tosca">Check-in Hari Ini</strong></div>

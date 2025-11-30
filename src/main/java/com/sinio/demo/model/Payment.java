@@ -1,6 +1,8 @@
 package com.sinio.demo.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -15,8 +17,9 @@ public class Payment {
     @Column(nullable = false, unique = true, length = 100)
     private String orderId;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "reservation_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reservation_id", nullable = true)
+    @NotFound(action = NotFoundAction.IGNORE)
     private Reservation reservation;
 
     @Column(nullable = false, precision = 12, scale = 2)

@@ -7,10 +7,19 @@ import com.sinio.demo.model.RoomAmenity;
 import com.sinio.demo.model.RoomServiceOption;
 import com.sinio.demo.model.RoomStatus;
 import com.sinio.demo.model.RoomType;
+import com.sinio.demo.model.RoomTypeEntity;
 import com.sinio.demo.repository.FacilityRepository;
+import com.sinio.demo.repository.PaymentRepository;
 import com.sinio.demo.repository.RoomFacilityRepository;
 import com.sinio.demo.repository.RoomRepository;
 import com.sinio.demo.repository.RoomTypeEntityRepository;
+import com.sinio.demo.repository.ReservationRepository;
+import com.sinio.demo.repository.ReservationRoomRepository;
+import com.sinio.demo.repository.StayRepository;
+import com.sinio.demo.model.Facility;
+import com.sinio.demo.repository.RoomServiceOptionRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,8 +38,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,17 +55,35 @@ public class RoomService {
     private final FacilityRepository facilityRepository;
     private final RoomFacilityRepository roomFacilityRepository;
     private final RoomTypeEntityRepository roomTypeEntityRepository;
+    private final ReservationRepository reservationRepository;
+    private final ReservationRoomRepository reservationRoomRepository;
+    private final StayRepository stayRepository;
+    private final PaymentRepository paymentRepository;
+    private final RoomServiceOptionRepository roomServiceOptionRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     public RoomService(
         RoomRepository roomRepository,
         FacilityRepository facilityRepository,
         RoomFacilityRepository roomFacilityRepository,
-        RoomTypeEntityRepository roomTypeEntityRepository
+        RoomTypeEntityRepository roomTypeEntityRepository,
+        ReservationRepository reservationRepository,
+        ReservationRoomRepository reservationRoomRepository,
+        StayRepository stayRepository,
+        PaymentRepository paymentRepository,
+        RoomServiceOptionRepository roomServiceOptionRepository,
+        JdbcTemplate jdbcTemplate
     ) {
         this.roomRepository = roomRepository;
         this.facilityRepository = facilityRepository;
         this.roomFacilityRepository = roomFacilityRepository;
         this.roomTypeEntityRepository = roomTypeEntityRepository;
+        this.reservationRepository = reservationRepository;
+        this.reservationRoomRepository = reservationRoomRepository;
+        this.stayRepository = stayRepository;
+        this.paymentRepository = paymentRepository;
+        this.roomServiceOptionRepository = roomServiceOptionRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public List<Room> findAllSorted() {
@@ -156,6 +185,7 @@ public class RoomService {
         room.setNumber(normalizedNumber);
         Room saved = roomRepository.save(room);
         syncRoomFacilities(saved, facilityNames);
+        syncRoomType(saved);
         return saved;
     }
 
@@ -175,6 +205,7 @@ public class RoomService {
         room.setNumber(normalizedNumber);
         Room saved = roomRepository.save(room);
         syncRoomFacilities(saved, facilityNames);
+        syncRoomType(saved);
         return saved;
     }
 
@@ -182,6 +213,39 @@ public class RoomService {
     public void deleteRoom(Long id) {
         Room room = roomRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Kamar tidak ditemukan."));
+
+        // Hapus seluruh jejak relasi agar admin bisa menghapus kamar dalam kondisi apapun
+        List<com.sinio.demo.model.ReservationRoom> reservationRooms = reservationRoomRepository.findByRoom_Id(id);
+        Set<Long> reservationIds = new HashSet<>();
+        reservationRepository.findByRoom_Id(id).forEach(r -> reservationIds.add(r.getId()));
+        reservationRooms.stream()
+            .map(rr -> rr.getReservation() != null ? rr.getReservation().getId() : null)
+            .filter(Objects::nonNull)
+            .forEach(reservationIds::add);
+
+        // Bersihkan entitas terkait reservasi dulu (stays, payments, reservation_rooms, reservations)
+        for (Long resId : reservationIds) {
+            stayRepository.deleteAll(stayRepository.findByReservation_Id(resId));
+            paymentRepository.deleteAll(paymentRepository.findByReservationId(resId));
+        }
+        reservationRoomRepository.deleteAll(reservationRooms);
+        if (!reservationIds.isEmpty()) {
+            reservationRepository.deleteAll(reservationRepository.findAllById(reservationIds));
+        }
+
+        // Stays yang langsung refer ke room (jaga-jaga ada sisa)
+        stayRepository.deleteAll(stayRepository.findByRoom_Id(id));
+
+        // Join fasilitas
+        roomFacilityRepository.deleteAll(roomFacilityRepository.findByRoom_Id(id));
+
+        // Bersihkan tabel legacy yang mungkin ada FK ke rooms, tapi abaikan jika tabel belum ada
+        try {
+            jdbcTemplate.update("DELETE FROM kamar_tipe WHERE room_id = ?", id);
+        } catch (DataAccessException ignored) {
+            // abaikan jika tabel belum ada di skema lama
+        }
+
         roomRepository.delete(room);
     }
 
@@ -189,6 +253,7 @@ public class RoomService {
         room.setType(request.getType());
         room.setRate(request.getRate());
         room.setStatus(request.getStatus());
+        room.setMaxOccupancy(request.getMaxOccupancy() != null ? request.getMaxOccupancy() : 2);
         room.setNote(request.getNote());
         room.setLastCleanedAt(request.getLastCleanedAt());
 
@@ -197,12 +262,64 @@ public class RoomService {
             amenitiesNames = getDefaultAmenities(request.getType());
         }
         room.setAmenities(toAmenities(amenitiesNames, room));
+        // Layanan berbayar kini dikelola via halaman khusus (/admin/layanan), sehingga form kamar tidak lagi mengubahnya.
+    }
 
-        List<RoomServiceOption> options = parseServiceOptions(request.getServicesText(), room);
-        if (options.isEmpty() && room.getId() == null) {
-            options = defaultServiceOptions(room);
+    @Transactional
+    public RoomServiceOption addServiceOption(Long roomId, String name, String unit, BigDecimal price) {
+        Room room = roomRepository.findById(roomId)
+            .orElseThrow(() -> new IllegalArgumentException("Kamar tidak ditemukan."));
+        if (!StringUtils.hasText(name)) {
+            throw new IllegalArgumentException("Nama layanan wajib diisi.");
         }
-        room.setServiceOptions(options);
+        String safeUnit = StringUtils.hasText(unit) ? unit.trim() : "unit";
+        BigDecimal safePrice = price != null ? price : BigDecimal.ZERO;
+        if (safePrice.signum() < 0) {
+            throw new IllegalArgumentException("Harga layanan tidak boleh negatif.");
+        }
+        Integer nextOrder = roomServiceOptionRepository.findByRoom_IdOrderBySortOrderAscIdAsc(roomId).stream()
+            .map(RoomServiceOption::getSortOrder)
+            .filter(Objects::nonNull)
+            .max(Integer::compareTo)
+            .map(v -> v + 1)
+            .orElse(0);
+
+        RoomServiceOption option = new RoomServiceOption();
+        option.setRoom(room);
+        option.setName(name.trim());
+        option.setUnit(safeUnit);
+        option.setPrice(safePrice);
+        option.setSortOrder(nextOrder);
+        return roomServiceOptionRepository.save(option);
+    }
+
+    @Transactional
+    public RoomServiceOption updateServiceOption(Long optionId, String name, String unit, BigDecimal price) {
+        RoomServiceOption option = roomServiceOptionRepository.findById(optionId)
+            .orElseThrow(() -> new IllegalArgumentException("Layanan tidak ditemukan."));
+        if (StringUtils.hasText(name)) {
+            option.setName(name.trim());
+        } else {
+            throw new IllegalArgumentException("Nama layanan wajib diisi.");
+        }
+        option.setUnit(StringUtils.hasText(unit) ? unit.trim() : "unit");
+        BigDecimal safePrice = price != null ? price : BigDecimal.ZERO;
+        if (safePrice.signum() < 0) {
+            throw new IllegalArgumentException("Harga layanan tidak boleh negatif.");
+        }
+        option.setPrice(safePrice);
+        return roomServiceOptionRepository.save(option);
+    }
+
+    @Transactional
+    public void deleteServiceOption(Long optionId) {
+        RoomServiceOption option = roomServiceOptionRepository.findById(optionId)
+            .orElseThrow(() -> new IllegalArgumentException("Layanan tidak ditemukan."));
+        roomServiceOptionRepository.delete(option);
+    }
+
+    public List<RoomServiceOption> findServiceOptionsForRoom(Long roomId) {
+        return roomServiceOptionRepository.findByRoom_IdOrderBySortOrderAscIdAsc(roomId);
     }
 
     public List<RoomType> getRoomTypes() {
@@ -233,16 +350,10 @@ public class RoomService {
         request.setType(room.getType());
         request.setRate(room.getRate());
         request.setStatus(room.getStatus());
+        request.setMaxOccupancy(room.getMaxOccupancy());
         request.setNote(room.getNote());
         request.setLastCleanedAt(room.getLastCleanedAt());
         request.setAmenitiesText(String.join("\n", resolveFacilityNames(room)));
-        request.setServicesText(
-            Optional.ofNullable(room.getServiceOptions()).orElse(List.of()).stream()
-                .sorted(Comparator.comparing(RoomServiceOption::getSortOrder, Comparator.nullsLast(Integer::compareTo))
-                    .thenComparing(RoomServiceOption::getName, String.CASE_INSENSITIVE_ORDER))
-                .map(this::formatServiceForForm)
-                .collect(Collectors.joining("\n"))
-        );
         return request;
     }
 
@@ -296,6 +407,33 @@ public class RoomService {
         }
         // For view purposes, just return defaults without writing to DB.
         return getDefaultAmenities(room.getType());
+    }
+
+    public List<Facility> listFacilities() {
+        return facilityRepository.findAll(Sort.by(Sort.Order.asc("name").ignoreCase()));
+    }
+
+    @Transactional
+    public Facility addFacility(String name) {
+        if (!StringUtils.hasText(name)) {
+            throw new IllegalArgumentException("Nama fasilitas tidak boleh kosong.");
+        }
+        String trimmed = name.trim();
+        facilityRepository.findByNameIgnoreCase(trimmed).ifPresent(f -> {
+            throw new IllegalArgumentException("Fasilitas sudah ada: " + trimmed);
+        });
+        Facility f = new Facility();
+        f.setName(trimmed);
+        return facilityRepository.save(f);
+    }
+
+    @Transactional
+    public void deleteFacility(Long facilityId) {
+        Facility facility = facilityRepository.findById(facilityId)
+            .orElseThrow(() -> new IllegalArgumentException("Fasilitas tidak ditemukan."));
+        // Bersihkan relasi join terlebih dahulu
+        roomFacilityRepository.deleteAll(roomFacilityRepository.findByFacility_Id(facilityId));
+        facilityRepository.delete(facility);
     }
 
     @Transactional
@@ -489,6 +627,91 @@ public class RoomService {
         current.stream()
             .filter(rf -> !desiredIds.contains(rf.getFacility().getId()))
             .forEach(roomFacilityRepository::delete);
+    }
+
+    private static final String SQL_CREATE_TIPE_KAMAR = """
+        CREATE TABLE IF NOT EXISTS tipe_kamar (
+          id BIGINT NOT NULL AUTO_INCREMENT,
+          code VARCHAR(60) NOT NULL UNIQUE,
+          name VARCHAR(120) NOT NULL,
+          PRIMARY KEY (id)
+        ) ENGINE=InnoDB
+        """;
+
+    private static final String SQL_CREATE_KAMAR_TIPE = """
+        CREATE TABLE IF NOT EXISTS kamar_tipe (
+          id BIGINT NOT NULL AUTO_INCREMENT,
+          room_id BIGINT NOT NULL UNIQUE,
+          tipe_kamar_id BIGINT NOT NULL,
+          PRIMARY KEY (id),
+          CONSTRAINT fk_kamar_tipe_room FOREIGN KEY (room_id) REFERENCES rooms(id),
+          CONSTRAINT fk_kamar_tipe_type FOREIGN KEY (tipe_kamar_id) REFERENCES tipe_kamar(id)
+        ) ENGINE=InnoDB
+        """;
+
+    private volatile boolean roomTypeTablesEnsured = false;
+
+    private void syncRoomType(Room room) {
+        if (room == null || room.getId() == null || room.getType() == null) {
+            return;
+        }
+
+        RoomTypeEntity master = roomTypeEntityRepository
+            .findByCode(room.getType().name())
+            .orElseGet(() -> {
+                RoomTypeEntity entity = new RoomTypeEntity();
+                entity.setCode(room.getType().name());
+                entity.setName(room.getType().getDisplayName());
+                return roomTypeEntityRepository.save(entity);
+            });
+
+        trySyncRoomTypeJoin(room, master);
+    }
+
+    private void trySyncRoomTypeJoin(Room room, RoomTypeEntity master) {
+        try {
+            upsertRoomTypeJoin(room, master);
+        } catch (DataAccessException ex) {
+            ensureRoomTypeTables();
+            try {
+                upsertRoomTypeJoin(room, master);
+            } catch (DataAccessException retryEx) {
+                throw new IllegalStateException("Gagal menyimpan tipe kamar ke tabel referensi.", retryEx);
+            }
+        }
+    }
+
+    private void upsertRoomTypeJoin(Room room, RoomTypeEntity master) {
+        int updated = jdbcTemplate.update(
+            "UPDATE kamar_tipe SET tipe_kamar_id = ? WHERE room_id = ?",
+            master.getId(),
+            room.getId()
+        );
+        if (updated == 0) {
+            jdbcTemplate.update(
+                "INSERT INTO kamar_tipe (room_id, tipe_kamar_id) VALUES (?, ?)",
+                room.getId(),
+                master.getId()
+            );
+        }
+    }
+
+    private void ensureRoomTypeTables() {
+        if (roomTypeTablesEnsured) {
+            return;
+        }
+        synchronized (this) {
+            if (roomTypeTablesEnsured) {
+                return;
+            }
+            try {
+                jdbcTemplate.execute(SQL_CREATE_TIPE_KAMAR);
+                jdbcTemplate.execute(SQL_CREATE_KAMAR_TIPE);
+                roomTypeTablesEnsured = true;
+            } catch (DataAccessException ignored) {
+                // ignore to allow retry handler to surface a meaningful error
+            }
+        }
     }
 
     private static <T> List<T> concat(List<T> a, List<T> b) {

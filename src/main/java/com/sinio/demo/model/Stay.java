@@ -2,6 +2,8 @@ package com.sinio.demo.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 
 @Entity
 @Table(name = "stays")
@@ -19,6 +21,7 @@ public class Stay {
     private Reservation reservation;
 
     @ManyToOne(optional = false, fetch = FetchType.EAGER)
+    @NotFound(action = NotFoundAction.IGNORE)
     @JoinColumn(name = "room_id", nullable = false)
     private Room room;
 
@@ -50,4 +53,3 @@ public class Stay {
     public void setCheckoutAt(LocalDateTime checkoutAt) { this.checkoutAt = checkoutAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }
-

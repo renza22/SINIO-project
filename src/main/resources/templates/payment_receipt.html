@@ -19,11 +19,12 @@
 </head>
 <body>
     <div class="header">
-        <div class="title">Bukti Pembayaran/Booking</div>
+        <div class="title" th:text="${payment != null && payment.paymentType != null && payment.paymentType.toUpperCase() == 'CASH' ? 'Bukti Reservasi' : 'Bukti Reservasi & Pembayaran'}">Bukti Reservasi</div>
         <div th:text="${payment != null ? payment.orderId : ''}">ORD-1</div>
     </div>
 
     <div class="section">
+        <div class="row"><span class="label">Nama Tamu</span><span class="value" th:text="${reservation.user.fullName}">Nama Tamu</span></div>
         <div class="row"><span class="label">Kode Reservasi</span><span class="value" th:text="${reservation.code}">RSV-1</span></div>
         <div class="row"><span class="label">Kamar</span><span class="value" th:text="${reservation.room.number}">101</span></div>
         <div class="row"><span class="label">Check-in</span><span class="value" th:text="${#temporals.format(reservation.checkIn, 'dd MMM yyyy')}">01 Jan 2025</span></div>
@@ -31,21 +32,34 @@
         <div class="row"><span class="label">Durasi</span><span class="value"><span th:text="${nights}">1</span> malam</span></div>
     </div>
 
-    <div class="section">
-        <div class="row"><span class="label">Metode</span><span class="value" th:text="${payment != null ? payment.paymentType : 'CASH'}">CASH</span></div>
-        <div class="row"><span class="label">Status</span><span class="value" th:text="${payment != null ? payment.status : 'PENDING'}">PENDING</span></div>
+    <div class="section" th:if="${payment == null || payment.paymentType == null || payment.paymentType.toUpperCase() != 'CASH'}">
+        <div class="row"><span class="label">Metode</span><span class="value" th:text="${payment != null ? payment.paymentType : 'ONLINE'}">MIDTRANS</span></div>
+        <div class="row">
+            <span class="label">Status</span>
+            <span class="value"
+                  th:text="${payment != null && payment.status != null ? (payment.status.name() == 'SUCCESS' ? 'LUNAS / PAID' : payment.status.name()) : 'PENDING'}">LUNAS / PAID</span>
+        </div>
         <div class="row"><span class="label">Jumlah</span><span class="value" th:text="${#numbers.formatDecimal(paymentAmount,0,'POINT',2,'COMMA')}">0</span></div>
         <div class="row"><span class="label">Dibuat</span><span class="value" th:text="${payment != null && payment.createdAt != null ? #temporals.format(payment.createdAt, 'dd MMM yyyy HH:mm') : '-'}">-</span></div>
         <div class="row"><span class="label">Waktu transaksi</span><span class="value" th:text="${payment != null && payment.transactionTime != null ? #temporals.format(payment.transactionTime, 'dd MMM yyyy HH:mm') : '-'}">-</span></div>
         <div class="row" th:if="${payment != null && payment.transactionId != null}"><span class="label">Transaksi ID</span><span class="value" th:text="${payment.transactionId}">trx</span></div>
+        <div class="row" th:if="${payment != null && payment.status != null && payment.status.name() == 'SUCCESS'}">
+            <span class="label">Kwitansi</span>
+            <span class="value">Pembayaran diterima (kwitansi sah)</span>
+        </div>
     </div>
 
-    <div class="section">
+    <div class="section" th:if="${payment != null && payment.paymentType != null && payment.paymentType.toUpperCase() == 'CASH'}">
+        <div class="row"><span class="label">Total Harga</span><span class="value" th:text="${#numbers.formatDecimal(paymentAmount,0,'POINT',2,'COMMA')}">0</span></div>
+        <div class="row"><span class="label">Status</span><span class="value">Bayar di hotel (cash)</span></div>
+        <div class="label">Tunjukkan bukti ini saat check-in untuk melakukan pembayaran tunai.</div>
+    </div>
+
+    <div class="section" th:if="${payment == null || payment.paymentType == null || payment.paymentType.toUpperCase() != 'CASH'}">
         <div class="row"><span class="label">Tarif kamar</span><span class="value" th:text="${#numbers.formatDecimal(reservation.room.rate,0,'POINT',2,'COMMA')}">0</span></div>
         <div class="row"><span class="label">Total kamar</span><span class="value" th:text="${#numbers.formatDecimal(roomTotal,0,'POINT',2,'COMMA')}">0</span></div>
         <div class="row"><span class="label">Total layanan</span><span class="value" th:text="${#numbers.formatDecimal(serviceTotal,0,'POINT',2,'COMMA')}">0</span></div>
         <div class="row total"><span>Total</span><span th:text="${#numbers.formatDecimal(paymentAmount,0,'POINT',2,'COMMA')}">0</span></div>
-        <div class="label" th:if="${payment != null && payment.paymentType != null && payment.paymentType.toUpperCase() == 'CASH'}">Pembayaran cash di hotel.</div>
         <div class="label" th:if="${payment != null && payment.paymentType != null && payment.paymentType.toUpperCase() != 'CASH'}">Pembayaran online via Midtrans.</div>
     </div>
 

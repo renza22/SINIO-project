@@ -42,6 +42,9 @@ public class Room {
     @Column(nullable = false, length = 20)
     private RoomStatus status;
 
+    @Column(nullable = false)
+    private Integer maxOccupancy;
+
     @Column(columnDefinition = "TEXT")
     private String note;
 
@@ -76,11 +79,17 @@ public class Room {
         LocalDateTime now = LocalDateTime.now();
         createdAt = now;
         updatedAt = now;
+        if (maxOccupancy == null || maxOccupancy < 1) {
+            maxOccupancy = 2;
+        }
     }
 
     @PreUpdate
     public void onUpdate() {
         updatedAt = LocalDateTime.now();
+        if (maxOccupancy == null || maxOccupancy < 1) {
+            maxOccupancy = 2;
+        }
     }
 
     public Long getId() {
@@ -117,6 +126,14 @@ public class Room {
 
     public void setStatus(RoomStatus status) {
         this.status = status;
+    }
+
+    public Integer getMaxOccupancy() {
+        return maxOccupancy;
+    }
+
+    public void setMaxOccupancy(Integer maxOccupancy) {
+        this.maxOccupancy = maxOccupancy;
     }
 
     public String getNote() {

@@ -105,7 +105,7 @@
         </div>
         <div class="detail-row">
             <span class="detail-label">Total</span>
-            <span class="detail-value" th:text="'Rp ' + #numbers.formatDecimal(totalAmount, 0, 0, ',', '.')">Rp 0</span>
+            <span class="detail-value" th:text="${'Rp ' + #numbers.formatDecimal(totalAmount, 0, 'POINT', 2, 'COMMA')}">Rp 0</span>
         </div>
         <div class="detail-row">
             <span class="detail-label">Metode Bayar</span>
@@ -116,6 +116,9 @@
             </span>
         </div>
     </div>
+    <p class="note" style="text-align:center; margin-top:-8px; margin-bottom:14px;">
+        Reservasi dikonfirmasi hanya setelah pembayaran berhasil. Jika pembayaran gagal atau ditutup, data reservasi akan dibatalkan.
+    </p>
 
     <button id="pay-button" class="pay-button" th:attr="data-reservation-id=${reservation.id}">
         Bayar Sekarang (Online)

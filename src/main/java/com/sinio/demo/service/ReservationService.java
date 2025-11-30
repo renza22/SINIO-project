@@ -8,6 +8,9 @@ import com.sinio.demo.repository.ReservationRoomRepository;
 import com.sinio.demo.repository.RoomRepository;
 import com.sinio.demo.repository.UserRepository;
 import com.sinio.demo.repository.StayRepository;
+import com.sinio.demo.repository.PaymentRepository;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,19 +33,25 @@ public class ReservationService {
     private final RoomRepository roomRepository;
     private final UserRepository userRepository;
     private final StayRepository stayRepository;
+    private final PaymentRepository paymentRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     public ReservationService(
         ReservationRepository reservationRepository,
         ReservationRoomRepository reservationRoomRepository,
         RoomRepository roomRepository,
         UserRepository userRepository,
-        StayRepository stayRepository
+        StayRepository stayRepository,
+        PaymentRepository paymentRepository,
+        JdbcTemplate jdbcTemplate
     ) {
         this.reservationRepository = reservationRepository;
         this.reservationRoomRepository = reservationRoomRepository;
         this.roomRepository = roomRepository;
         this.userRepository = userRepository;
         this.stayRepository = stayRepository;
+        this.paymentRepository = paymentRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional
@@ -67,7 +76,7 @@ public class ReservationService {
         reservation.setRoom(room); // legacy compatibility
         reservation.setCheckIn(request.getCheckIn());
         reservation.setCheckOut(request.getCheckOut());
-        reservation.setStatus(ReservationStatus.BOOKED);
+        reservation.setStatus(ReservationStatus.PENDING_PAYMENT);
         reservation.setRequestedServices(buildSelectedServices(reservation, room, request.getRequestedServiceIds()));
 
         ReservationRoom rr = new ReservationRoom();
@@ -81,30 +90,41 @@ public class ReservationService {
         saved.setCode("RSV-" + saved.getId());
         saved = reservationRepository.save(saved);
 
-        // Mark room as BOOKED (simple approach for demo)
-        if (room.getStatus() != RoomStatus.BOOKED) {
-            room.setStatus(RoomStatus.BOOKED);
-            roomRepository.save(room);
-        }
-
         return saved;
     }
 
     public List<Reservation> findByUser(Long userId) {
-        return reservationRepository.findByUser_IdOrderByCreatedAtDesc(userId);
+        try {
+            return reservationRepository.findByUser_IdOrderByCreatedAtDesc(userId);
+        } catch (org.springframework.orm.jpa.JpaObjectRetrievalFailureException | jakarta.persistence.EntityNotFoundException ex) {
+            purgeOrphanReservations();
+            try {
+                return reservationRepository.findByUser_IdOrderByCreatedAtDesc(userId);
+            } catch (Exception retryEx) {
+                // jika data tetap kotor, jangan blokir akses tamu
+                return List.of();
+            }
+        }
     }
 
     public List<ReservationView> toListView(List<Reservation> reservations) {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
         return reservations.stream()
-            .map(r -> new ReservationView(
-                r.getId(),
-                r.getCode(),
-                primaryRoom(r).getNumber(),
-                primaryRoom(r).getType().getDisplayName(),
-                fmt.format(r.getCheckIn()) + " - " + fmt.format(r.getCheckOut()),
-                r.getStatus().name()
-            ))
+            .map(r -> {
+                Room room = safePrimaryRoom(r);
+                if (room == null) {
+                    return null;
+                }
+                return new ReservationView(
+                    r.getId(),
+                    r.getCode(),
+                    room.getNumber(),
+                    room.getType().getDisplayName(),
+                    fmt.format(r.getCheckIn()) + " - " + fmt.format(r.getCheckOut()),
+                    r.getStatus().name()
+                );
+            })
+            .filter(java.util.Objects::nonNull)
             .toList();
     }
 
@@ -117,47 +137,37 @@ public class ReservationService {
         stayRepository.findByReservation_IdAndCheckoutAtIsNull(r.getId()).ifPresent(s -> {
             throw new IllegalStateException("Reservasi sudah check-in dan tidak dapat dibatalkan.");
         });
-        List<ReservationRoom> rooms = r.getReservationRooms();
-        reservationRepository.delete(r);
-
-        if (rooms == null || rooms.isEmpty()) {
-            Room legacy = r.getRoom();
-            if (legacy != null) {
-                legacy.setStatus(RoomStatus.AVAILABLE);
-                roomRepository.save(legacy);
-            }
-        } else {
-            rooms.forEach(rr -> {
-            Room room = rr.getRoom();
-            if (room != null) {
-                room.setStatus(RoomStatus.AVAILABLE);
-                roomRepository.save(room);
-            }
-            });
-        }
+        deleteAndRelease(r);
     }
 
     public Optional<Reservation> findActiveForUser(Long userId) {
         LocalDate today = LocalDate.now();
         return findByUser(userId).stream()
             .filter(r -> switch (r.getStatus()) {
+                case PENDING_PAYMENT -> hasPendingCashPayment(r) && !r.getCheckOut().isBefore(today);
                 case CHECKED_IN, CONFIRMED -> !r.getCheckOut().isBefore(today);
                 case BOOKED -> (!r.getCheckIn().isAfter(today) && r.getCheckOut().isAfter(today));
                 default -> false;
             })
+            .filter(r -> safePrimaryRoom(r) != null)
             .findFirst();
     }
 
     public java.util.Map<String, Object> toActiveView(Reservation r) {
+        Room room = safePrimaryRoom(r);
+        if (room == null) {
+            return null; // data tidak konsisten, jangan blokir halaman
+        }
         java.util.Map<String, Object> m = new java.util.HashMap<>();
         m.put("kode", r.getCode());
         m.put("reservasiId", r.getId());
         m.put("checkinRencana", r.getCheckIn());
         m.put("checkoutRencana", r.getCheckOut());
-        m.put("nomorKamar", primaryRoom(r).getNumber());
-        m.put("namaTipe", primaryRoom(r).getType().getDisplayName());
+        m.put("nomorKamar", room.getNumber());
+        m.put("namaTipe", room.getType().getDisplayName());
         m.put("status", r.getStatus().name());
         String badge = switch (r.getStatus()) {
+            case PENDING_PAYMENT -> "secondary";
             case BOOKED -> "warning";
             case CHECKED_IN, CONFIRMED -> "success";
             case CHECKED_OUT -> "secondary";
@@ -171,7 +181,9 @@ public class ReservationService {
     public Set<Long> getOccupiedRoomIdsToday() {
         return stayRepository.findByCheckoutAtIsNull()
             .stream()
-            .map(s -> s.getRoom().getId())
+            .map(s -> s.getRoom())
+            .filter(Objects::nonNull)
+            .map(Room::getId)
             .collect(Collectors.toSet());
     }
 
@@ -180,60 +192,97 @@ public class ReservationService {
     }
 
     public List<Reservation> findRecent() {
-        return reservationRepository.findTop10ByOrderByCreatedAtDesc();
+        try {
+            return reservationRepository.findTop10ByOrderByCreatedAtDesc();
+        } catch (org.springframework.orm.jpa.JpaObjectRetrievalFailureException | jakarta.persistence.EntityNotFoundException ex) {
+            purgeOrphanReservations();
+            try {
+                return reservationRepository.findTop10ByOrderByCreatedAtDesc();
+            } catch (Exception retryEx) {
+                // jika data masih kotor setelah purge, kosongkan supaya dashboard tetap jalan
+                return List.of();
+            }
+        } catch (RuntimeException ex) {
+            purgeOrphanReservations();
+            try {
+                return reservationRepository.findTop10ByOrderByCreatedAtDesc();
+            } catch (Exception retryEx) {
+                // jika tetap gagal, kembalikan list kosong supaya dashboard tetap bisa render
+                return List.of();
+            }
+        }
+    }
+
+    public Optional<Reservation> findById(Long id) {
+        return reservationRepository.findById(id);
     }
 
     public List<java.util.Map<String, Object>> recentReservationsView() {
         DateTimeFormatter shortFmt = DateTimeFormatter.ofPattern("dd MMM");
-        return findRecent().stream().map(r -> {
-            java.util.Map<String, Object> m = new java.util.HashMap<>();
-            m.put("reservasiId", r.getId());
-            m.put("kode", r.getCode());
-            m.put("tamuNama", r.getUser().getFullName());
-            m.put("tipeKamar", primaryRoom(r).getType().getDisplayName());
-            m.put("checkinRencana", r.getCheckIn());
-            m.put("checkoutRencana", r.getCheckOut());
-            m.put("status", r.getStatus().name());
-            m.put("servicesSummary", formatServicesSummary(r.getRequestedServices()));
-        String badge = switch (r.getStatus()) {
-            case BOOKED -> "warning";
-            case CHECKED_IN, CONFIRMED -> "success";
-            case CHECKED_OUT -> "secondary";
-            case CANCELED -> "danger";
-        };
-            m.put("badge", badge);
-            return m;
-        }).toList();
+        return findRecent().stream()
+            .map(r -> {
+                Room room = safePrimaryRoom(r);
+                if (room == null) {
+                    return null;
+                }
+                java.util.Map<String, Object> m = new java.util.HashMap<>();
+                m.put("reservasiId", r.getId());
+                m.put("kode", r.getCode());
+                m.put("tamuNama", r.getUser().getFullName());
+                m.put("nomorKamar", room.getNumber());
+                m.put("tipeKamar", room.getType().getDisplayName());
+                m.put("checkinRencana", r.getCheckIn());
+                m.put("checkoutRencana", r.getCheckOut());
+                m.put("status", r.getStatus().name());
+                m.put("servicesSummary", formatServicesSummary(r.getRequestedServices()));
+            String badge = switch (r.getStatus()) {
+                case PENDING_PAYMENT -> "secondary";
+                case BOOKED -> "warning";
+                case CHECKED_IN, CONFIRMED -> "success";
+                case CHECKED_OUT -> "secondary";
+                case CANCELED -> "danger";
+            };
+                m.put("badge", badge);
+                return m;
+            })
+            .filter(java.util.Objects::nonNull)
+            .toList();
     }
 
     // ---- Front Office views ----
     public List<java.util.Map<String, Object>> arrivalsTodayView() {
-        LocalDate today = LocalDate.now();
+        purgeOrphanReservations();
         List<ReservationStatus> statuses = List.of(ReservationStatus.BOOKED, ReservationStatus.CONFIRMED);
-        return reservationRepository
-            .findTop10ByStatusInAndCheckInGreaterThanEqualOrderByCheckInAsc(statuses, today)
-            .stream()
+        // tampilkan 20 teratas tanpa membatasi tanggal supaya reservasi yang tertunda tetap bisa di-approve
+        return reservationRepository.findTop20ByStatusInOrderByCheckInAsc(statuses).stream()
             .filter(r -> stayRepository.findByReservation_IdAndCheckoutAtIsNull(r.getId()).isEmpty())
             .map(this::toFoRow)
+            .filter(Objects::nonNull)
             .toList();
     }
 
     public List<java.util.Map<String, Object>> departuresTodayView() {
+        purgeOrphanReservations();
         LocalDate today = LocalDate.now();
         return reservationRepository.findTop10ByCheckOutGreaterThanEqualOrderByCheckOutAsc(today).stream()
             .filter(r -> stayRepository.findByReservation_IdAndCheckoutAtIsNull(r.getId()).isPresent()
                 && !r.getCheckOut().isAfter(today))
             .map(this::toFoRow)
+            .filter(Objects::nonNull)
             .toList();
     }
 
     private java.util.Map<String, Object> toFoRow(Reservation r) {
+        Room room = safePrimaryRoom(r);
+        if (room == null) {
+            return null; // skip reservation with missing/invalid room linkage
+        }
         java.util.Map<String, Object> m = new java.util.HashMap<>();
         m.put("reservasiId", r.getId());
         m.put("kode", r.getCode());
         m.put("tamuNama", r.getUser().getFullName());
-        m.put("nomorKamar", primaryRoom(r).getNumber());
-        m.put("tipeKamar", primaryRoom(r).getType().getDisplayName());
+        m.put("nomorKamar", room.getNumber());
+        m.put("tipeKamar", room.getType().getDisplayName());
         m.put("checkin", r.getCheckIn());
         m.put("checkout", r.getCheckOut());
         m.put("status", r.getStatus().name());
@@ -263,7 +312,10 @@ public class ReservationService {
     }
 
     public List<java.util.Map<String, Object>> serviceOptionsView(Reservation reservation) {
-        Room room = primaryRoom(reservation);
+        Room room = safePrimaryRoom(reservation);
+        if (room == null) {
+            return List.of();
+        }
         return Optional.ofNullable(room.getServiceOptions()).orElse(List.of()).stream()
             .filter(option -> option.getId() != null)
             .sorted(java.util.Comparator.comparing(RoomServiceOption::getSortOrder, java.util.Comparator.nullsLast(Integer::compareTo))
@@ -312,7 +364,10 @@ public class ReservationService {
             throw new IllegalStateException("Reservasi tidak aktif.");
         }
 
-        Room room = primaryRoom(reservation);
+        Room room = safePrimaryRoom(reservation);
+        if (room == null) {
+            throw new IllegalStateException("Kamar untuk reservasi ini sudah tidak tersedia.");
+        }
         RoomServiceOption option = Optional.ofNullable(room.getServiceOptions()).orElse(List.of()).stream()
             .filter(o -> o.getId() != null && o.getId().equals(serviceOptionId))
             .findFirst()
@@ -333,7 +388,58 @@ public class ReservationService {
         reservationRepository.save(reservation);
     }
 
-    
+    @Transactional
+    public void confirmPayment(Reservation reservation) {
+        if (reservation == null) {
+            return;
+        }
+        reservation.setStatus(ReservationStatus.BOOKED);
+        reservationRepository.save(reservation);
+
+        Room room = safePrimaryRoom(reservation);
+        if (room != null && room.getStatus() != RoomStatus.BOOKED) {
+            room.setStatus(RoomStatus.BOOKED);
+            roomRepository.save(room);
+        }
+    }
+
+    /**
+     * Hapus reservasi yang belum dibayar dan kembalikan status kamar.
+     */
+    @Transactional
+    public void deleteAndRelease(Reservation reservation) {
+        if (reservation == null) {
+            return;
+        }
+        if (reservation.getId() != null) {
+            List<Payment> payments = paymentRepository.findByReservationId(reservation.getId());
+            boolean hasSuccess = payments != null && payments.stream().anyMatch(p -> p.getStatus() == PaymentStatus.SUCCESS);
+            if (hasSuccess) {
+                throw new IllegalStateException("Reservasi sudah memiliki pembayaran yang berhasil sehingga tidak dapat dihapus otomatis.");
+            }
+            if (payments != null && !payments.isEmpty()) {
+                paymentRepository.deleteAll(payments);
+            }
+        }
+        List<ReservationRoom> rooms = reservation.getReservationRooms();
+        if (rooms == null || rooms.isEmpty()) {
+            Room legacy = reservation.getRoom();
+            if (legacy != null) {
+                legacy.setStatus(RoomStatus.AVAILABLE);
+                roomRepository.save(legacy);
+            }
+        } else {
+            rooms.forEach(rr -> {
+                Room room = rr.getRoom();
+                if (room != null) {
+                    room.setStatus(RoomStatus.AVAILABLE);
+                    roomRepository.save(room);
+                }
+            });
+        }
+        reservationRepository.delete(reservation);
+    }
+
 
     // ---- Guest-driven transitions with ownership checks ----
     @Transactional
@@ -365,18 +471,20 @@ public class ReservationService {
         r.setStatus(ReservationStatus.CONFIRMED);
         reservationRepository.save(r);
 
+        Room room = safePrimaryRoom(r);
+        if (room == null) {
+            throw new IllegalStateException("Kamar untuk reservasi ini sudah dihapus.");
+        }
+
         Stay stay = new Stay();
         stay.setUser(r.getUser());
         stay.setReservation(r);
-        stay.setRoom(primaryRoom(r));
+        stay.setRoom(room);
         stay.setCheckinAt(java.time.LocalDateTime.now());
         stayRepository.save(stay);
 
-        Room room = primaryRoom(r);
-        if (room != null) {
-            room.setStatus(RoomStatus.OCCUPIED);
-            roomRepository.save(room);
-        }
+        room.setStatus(RoomStatus.OCCUPIED);
+        roomRepository.save(room);
     }
 
     @Transactional
@@ -392,11 +500,12 @@ public class ReservationService {
         r.setStatus(ReservationStatus.CHECKED_OUT);
         reservationRepository.save(r);
 
-        Room room = primaryRoom(r);
-        if (room != null) {
-            room.setStatus(RoomStatus.CLEANING);
-            roomRepository.save(room);
+        Room room = safePrimaryRoom(r);
+        if (room == null) {
+            throw new IllegalStateException("Kamar untuk reservasi ini sudah dihapus.");
         }
+        room.setStatus(RoomStatus.CLEANING);
+        roomRepository.save(room);
     }
 
     private List<ReservationServiceSelection> buildSelectedServices(Reservation reservation, Room room, List<Long> requestedIds) {
@@ -437,7 +546,7 @@ public class ReservationService {
             .collect(Collectors.joining(", "));
     }
 
-    private Room primaryRoom(Reservation reservation) {
+    public Room primaryRoom(Reservation reservation) {
         if (reservation == null) {
             throw new IllegalArgumentException("Reservasi tidak ditemukan.");
         }
@@ -446,5 +555,32 @@ public class ReservationService {
             throw new IllegalStateException("Reservasi belum memiliki kamar terasosiasi.");
         }
         return room;
+    }
+
+    public Room safePrimaryRoom(Reservation reservation) {
+        try {
+            return primaryRoom(reservation);
+        } catch (IllegalStateException | org.springframework.orm.jpa.JpaObjectRetrievalFailureException | jakarta.persistence.EntityNotFoundException ex) {
+            // Skip data yang sudah tidak konsisten (mis. kamar dihapus)
+            return null;
+        }
+    }
+
+    private boolean hasPendingCashPayment(Reservation reservation) {
+        return paymentRepository.findTop1ByReservationIdOrderByCreatedAtDesc(reservation.getId())
+            .map(p -> p.getStatus() == PaymentStatus.PENDING
+                && p.getPaymentType() != null
+                && "CASH".equalsIgnoreCase(p.getPaymentType()))
+            .orElse(false);
+    }
+
+    private void purgeOrphanReservations() {
+        try {
+            jdbcTemplate.update("DELETE FROM reservation_rooms WHERE room_id NOT IN (SELECT id FROM rooms)");
+            jdbcTemplate.update("DELETE FROM stays WHERE room_id NOT IN (SELECT id FROM rooms)");
+            jdbcTemplate.update("DELETE FROM reservations WHERE room_id NOT IN (SELECT id FROM rooms)");
+        } catch (DataAccessException ignored) {
+            // jika gagal, biarkan supaya error asli tetap terlihat
+        }
     }
 }

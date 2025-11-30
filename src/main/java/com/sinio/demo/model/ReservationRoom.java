@@ -10,6 +10,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 
 @Entity
 @Table(name = "reservation_rooms")
@@ -24,6 +26,7 @@ public class ReservationRoom {
     private Reservation reservation;
 
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @NotFound(action = NotFoundAction.IGNORE)
     @JoinColumn(name = "room_id", nullable = false)
     private Room room;
 

@@ -72,9 +72,18 @@
           <td th:text="${r.kode}">RSV-001</td>
           <td><span class="truncate-sm" th:text="${r.nomorKamar + ' (' + r.tipe + ')'}">301 (Suite)</span></td>
           <td><span class="truncate-sm" th:text="${r.periode}">23-27 Sep 2025</span></td>
-          <td th:text="${r.status}">CHECK_IN</td>
+          <td>
+            <span class="badge rounded-pill"
+                  th:classappend="${(r.displayStatus ?: r.status)=='MENUNGGU PEMBAYARAN CASH' ? ' text-bg-secondary' : ((r.displayStatus ?: r.status)=='MENUNGGU PEMBAYARAN ONLINE' ? ' text-bg-warning' : (r.status=='BOOKED' ? ' text-bg-warning' : (r.status=='CHECKED_IN' ? ' text-bg-success' : (r.status=='CHECKED_OUT' ? ' text-bg-secondary' : ' text-bg-danger'))))}"
+                  th:text="${r.displayStatus ?: r.status}">
+              CHECK_IN
+            </span>
+          </td>
           <td class="text-end">
             <div class="actions">
+              <a class="btn btn-sm btn-outline-tosca rounded-pill" th:if="${r.pendingOnline}" th:href="@{/guest/payment/{id}(id=${r.id})}">
+                <i class="bi bi-credit-card"></i> Lanjutkan Bayar Online
+              </a>
               <a class="btn btn-sm btn-tosca rounded-pill" th:href="@{/guest/reservasi/{id}(id=${r.id})}" title="Lihat detail"><i class="bi bi-eye"></i> Detail</a>
               <form th:if="${r.status != 'CONFIRMED' and r.status != 'CHECKED_OUT'}" th:action="@{/guest/reservasi/{id}/cancel(id=${r.id})}" method="post" class="d-inline">
                 <button type="submit" class="btn btn-sm btn-outline-danger btn-cancel rounded-pill" onclick="return confirm('Batalkan reservasi ini?');" title="Batalkan reservasi">

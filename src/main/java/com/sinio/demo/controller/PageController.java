@@ -13,6 +13,7 @@ import com.sinio.demo.dto.RoomSummaryView;
 import com.sinio.demo.model.Reservation;
 import com.sinio.demo.model.Room;
 import com.sinio.demo.model.Payment;
+import com.sinio.demo.model.PaymentStatus;
 import com.sinio.demo.model.User;
 import com.sinio.demo.model.UserRole;
 import com.sinio.demo.model.RoomStatus;
@@ -37,10 +38,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 @Controller
@@ -227,8 +230,35 @@ public class PageController {
         populateCommonModel(session, model);
         try {
             Long userId = (Long) session.getAttribute("userId");
-            var reservations = reservationService.toListView(reservationService.findByUser(userId));
-            model.addAttribute("reservations", reservations);
+            var reservations = reservationService.findByUser(userId);
+            List<Map<String, Object>> views = reservations.stream()
+                .map(r -> {
+                    Room room = reservationService.safePrimaryRoom(r);
+                    if (room == null) {
+                        return null; // skip reservasi tanpa kamar (data kotor)
+                    }
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("id", r.getId());
+                    m.put("kode", r.getCode());
+                    m.put("nomorKamar", room.getNumber());
+                    m.put("tipe", room.getType().getDisplayName());
+                    m.put("periode", DateTimeFormatter.ofPattern("dd MMM yyyy").format(r.getCheckIn()) + " - " + DateTimeFormatter.ofPattern("dd MMM yyyy").format(r.getCheckOut()));
+                    m.put("status", r.getStatus().name());
+                    Payment latest = paymentService.getLatestPaymentForReservation(r.getId());
+                    boolean isOwnReservation = Objects.equals(r.getUser().getId(), userId);
+                    if (latest != null && latest.getStatus() == PaymentStatus.PENDING && isOwnReservation) {
+                        boolean isCash = "CASH".equalsIgnoreCase(latest.getPaymentType());
+                        m.put("displayStatus", isCash ? "MENUNGGU PEMBAYARAN CASH" : "MENUNGGU PEMBAYARAN ONLINE");
+                        m.put("pendingOnline", !isCash);
+                    } else {
+                        m.put("displayStatus", r.getStatus().name());
+                        m.put("pendingOnline", false);
+                    }
+                    return m;
+                })
+                .filter(Objects::nonNull)
+                .toList();
+            model.addAttribute("reservations", views);
         } catch (Exception ex) {
             model.addAttribute("reservations", java.util.Collections.emptyList());
             model.addAttribute("guestError", "Gagal memuat reservasi: " + ex.getMessage());
@@ -275,7 +305,7 @@ public class PageController {
                     "reservationId", reservation.getId()
                 ));
             }
-            redirectAttributes.addFlashAttribute("guestMessage", "Reservasi berhasil dibuat. Silakan lanjutkan pembayaran.");
+            redirectAttributes.addFlashAttribute("guestMessage", "Reservasi dicatat dan menunggu pembayaran. Selesaikan pembayaran untuk mengonfirmasi.");
             return "redirect:/guest/payment/" + reservation.getId();
         } catch (IllegalArgumentException ex) {
             if (acceptsJson(httpRequest)) {
@@ -308,6 +338,7 @@ public class PageController {
                 Payment payment = paymentService.getLatestPaymentForReservation(r.getId());
                 model.addAttribute("payment", payment);
                 model.addAttribute("payments", paymentService.getPaymentsByReservationId(r.getId()));
+                model.addAttribute("midtransClientKey", paymentService.getClientKey());
                 return "guest_reservasi_detail";
             })
             .orElseGet(() -> {
@@ -332,6 +363,8 @@ public class PageController {
             reservationService.cancel(userId, id);
             redirectAttributes.addFlashAttribute("guestMessage", "Reservasi berhasil dibatalkan.");
         } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("guestError", ex.getMessage());
+        } catch (IllegalStateException ex) {
             redirectAttributes.addFlashAttribute("guestError", ex.getMessage());
         } catch (Exception ex) {
             redirectAttributes.addFlashAttribute("guestError", "Gagal membatalkan reservasi.");
@@ -612,8 +645,10 @@ public class PageController {
         try {
             roomService.deleteRoom(id);
             redirectAttributes.addFlashAttribute("roomSuccess", "Kamar berhasil dihapus.");
-        } catch (IllegalArgumentException ex) {
+        } catch (IllegalArgumentException | IllegalStateException ex) {
             redirectAttributes.addFlashAttribute("roomError", ex.getMessage());
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("roomError", "Gagal menghapus kamar.");
         }
         return "redirect:/admin/kamar";
     }
@@ -635,10 +670,14 @@ public class PageController {
         model.addAttribute("facilityOptions", roomService.getFacilityOptions());
 
         if (!model.containsAttribute("roomForm")) {
-            model.addAttribute("roomForm", new RoomRequest());
+            RoomRequest create = new RoomRequest();
+            create.setMaxOccupancy(2);
+            model.addAttribute("roomForm", create);
         }
         if (!model.containsAttribute("roomEditForm")) {
-            model.addAttribute("roomEditForm", new RoomRequest());
+            RoomRequest edit = new RoomRequest();
+            edit.setMaxOccupancy(2);
+            model.addAttribute("roomEditForm", edit);
         }
         if (!model.containsAttribute("roomFormMode")) {
             model.addAttribute("roomFormMode", "create");
@@ -732,6 +771,90 @@ public class PageController {
             redirectAttributes.addFlashAttribute("employeeError", ex.getMessage());
         }
         return "redirect:/admin/karyawan";
+    }
+
+    @GetMapping("/admin/layanan")
+    public String manageServices(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+        populateCommonModel(session, model);
+        List<Map<String, Object>> rooms = roomService.findAllSorted().stream().map(r -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", r.getId());
+            m.put("nomor", r.getNumber());
+            m.put("tipe", r.getType().getDisplayName());
+            m.put("layanan", roomService.findServiceOptionsForRoom(r.getId()));
+            return m;
+        }).toList();
+        model.addAttribute("roomsWithServices", rooms);
+        return "admin_layanan";
+    }
+
+    @PostMapping("/admin/layanan")
+    public String addServiceOption(
+        @RequestParam Long roomId,
+        @RequestParam String nama,
+        @RequestParam(required = false) String satuan,
+        @RequestParam(required = false) String harga,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+        try {
+            java.math.BigDecimal price = (harga != null && !harga.isBlank()) ? new java.math.BigDecimal(harga.trim()) : java.math.BigDecimal.ZERO;
+            roomService.addServiceOption(roomId, nama, satuan, price);
+            redirectAttributes.addFlashAttribute("adminSuccess", "Layanan baru ditambahkan.");
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("adminError", ex.getMessage());
+        }
+        return "redirect:/admin/layanan";
+    }
+
+    @PostMapping("/admin/layanan/{id}/update")
+    public String updateServiceOption(
+        @PathVariable Long id,
+        @RequestParam String nama,
+        @RequestParam(required = false) String satuan,
+        @RequestParam(required = false) String harga,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+        try {
+            java.math.BigDecimal price = (harga != null && !harga.isBlank()) ? new java.math.BigDecimal(harga.trim()) : java.math.BigDecimal.ZERO;
+            roomService.updateServiceOption(id, nama, satuan, price);
+            redirectAttributes.addFlashAttribute("adminSuccess", "Layanan diperbarui.");
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("adminError", ex.getMessage());
+        }
+        return "redirect:/admin/layanan";
+    }
+
+    @PostMapping("/admin/layanan/{id}/delete")
+    public String deleteServiceOption(
+        @PathVariable Long id,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+        try {
+            roomService.deleteServiceOption(id);
+            redirectAttributes.addFlashAttribute("adminSuccess", "Layanan dihapus.");
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("adminError", ex.getMessage());
+        }
+        return "redirect:/admin/layanan";
     }
 
     @GetMapping("/logout")
@@ -884,7 +1007,7 @@ public class PageController {
             model.addAttribute("layananList", Collections.emptyList());
             model.addAttribute("keranjangLayanan", Collections.emptyList());
         }
-        model.addAttribute("invoice", null);
+        model.addAttribute("invoice", userId != null ? paymentService.getLatestPaymentViewForUser(userId) : null);
         model.addAttribute("facilityOptions", roomService.getFacilityOptions());
         if (!model.containsAttribute("layananForm")) {
             model.addAttribute("layananForm", new LayananForm());
@@ -904,8 +1027,8 @@ public class PageController {
         Map<String, Object> kpi = new HashMap<>();
         kpi.put("availableRooms", available);
         kpi.put("occupiedRooms", occupied);
-        kpi.put("todayRevenue", BigDecimal.ZERO);
-        kpi.put("pendingInvoices", 0);
+        kpi.put("todayRevenue", paymentService.getTodayRevenue());
+        kpi.put("pendingInvoices", paymentService.getPendingPaymentCount());
         model.addAttribute("kpi", kpi);
 
         // Build roomByType summary expected by template
@@ -925,8 +1048,84 @@ public class PageController {
         model.addAttribute("roomByType", byType);
 
         model.addAttribute("recentReservations", reservationService.recentReservationsView());
-        model.addAttribute("recentPayments", Collections.emptyList());
+        model.addAttribute("recentPayments", paymentService.getRecentPaymentViews(6));
         model.addAttribute("facilityOptions", roomService.getFacilityOptions());
+    }
+
+    @GetMapping("/admin/fasilitas")
+    public String manageFacilities(HttpSession session, RedirectAttributes redirectAttributes, Model model) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+        populateCommonModel(session, model);
+        model.addAttribute("facilities", roomService.listFacilities());
+        return "admin_fasilitas";
+    }
+
+    @PostMapping("/admin/fasilitas")
+    public String addFacility(
+        @RequestParam("name") String name,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+        try {
+            roomService.addFacility(name);
+            redirectAttributes.addFlashAttribute("facilitySuccess", "Fasilitas ditambahkan.");
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("facilityError", ex.getMessage());
+        }
+        return "redirect:/admin/fasilitas";
+    }
+
+    @PostMapping("/admin/fasilitas/{id}/delete")
+    public String deleteFacility(
+        @PathVariable Long id,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+        try {
+            roomService.deleteFacility(id);
+            redirectAttributes.addFlashAttribute("facilitySuccess", "Fasilitas dihapus.");
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("facilityError", ex.getMessage());
+        }
+        return "redirect:/admin/fasilitas";
+    }
+
+    @GetMapping("/admin/reservasi/{id}")
+    public String adminReservationDetail(
+        @PathVariable Long id,
+        HttpSession session,
+        RedirectAttributes redirectAttributes,
+        Model model
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+
+        return reservationService.findById(id)
+            .map(r -> {
+                populateCommonModel(session, model);
+                model.addAttribute("reservation", r);
+                model.addAttribute("payment", paymentService.getLatestPaymentForReservation(id));
+                model.addAttribute("payments", paymentService.getPaymentsByReservationId(id));
+                model.addAttribute("midtransClientKey", paymentService.getClientKey());
+                return "admin_reservasi_detail";
+            })
+            .orElseGet(() -> {
+                redirectAttributes.addFlashAttribute("adminError", "Reservasi tidak ditemukan.");
+                return "redirect:/dashboard/admin";
+            });
     }
 
     // ---- Staff (Karyawan): reservation transitions ----
@@ -964,6 +1163,25 @@ public class PageController {
         return "redirect:/dashboard/karyawan";
     }
 
+    @PostMapping("/karyawan/pembayaran/{id}/confirm")
+    public String staffConfirmPayment(
+        @PathVariable Long id,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.KARYAWAN);
+        if (redirect != null) {
+            return redirect;
+        }
+        try {
+            paymentService.staffConfirmPayment(id);
+            redirectAttributes.addFlashAttribute("employeeSuccess", "Pembayaran dikonfirmasi.");
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("employeeError", ex.getMessage());
+        }
+        return "redirect:/dashboard/karyawan";
+    }
+
     @PostMapping("/karyawan/kamar/{id}/available")
     public String markRoomAvailable(
         @PathVariable Long id,
@@ -992,6 +1210,7 @@ public class PageController {
         model.addAttribute("facilityOptions", roomService.getFacilityOptions());
         model.addAttribute("rooms", roomService.findAllSorted());
         model.addAttribute("ordersInProgress", Collections.emptyList());
+        model.addAttribute("pendingPayments", paymentService.getPendingPaymentViewsForStaff(10));
     }
 
     public static class LayananForm {

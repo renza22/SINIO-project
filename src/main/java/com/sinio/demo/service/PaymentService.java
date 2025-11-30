@@ -10,6 +10,7 @@ import com.sinio.demo.model.Reservation;
 import com.sinio.demo.model.Room;
 import com.sinio.demo.repository.PaymentRepository;
 import com.sinio.demo.repository.ReservationRepository;
+import com.sinio.demo.service.ReservationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,9 @@ public class PaymentService {
 
     @Autowired
     private ReservationRepository reservationRepository;
+
+    @Autowired
+    private ReservationService reservationService;
 
     @Value("${midtrans.server.key}")
     private String serverKey;
@@ -80,6 +84,9 @@ public class PaymentService {
         for (Payment p : existingPayments) {
             if (p.getStatus() == PaymentStatus.PENDING || p.getStatus() == PaymentStatus.SUCCESS) {
                 // Return existing pending/success payment
+                if (p.getStatus() == PaymentStatus.SUCCESS) {
+                    reservationService.confirmPayment(reservation);
+                }
                 return p;
             }
         }
@@ -96,7 +103,7 @@ public class PaymentService {
         payment.setReservation(reservation);
         payment.setAmount(totalAmount);
 
-        // Cash: skip Midtrans, simpan sebagai pending cash
+        // Cash: buat catatan menunggu konfirmasi front office
         if ("cash".equals(method)) {
             payment.setStatus(PaymentStatus.PENDING);
             payment.setPaymentType("CASH");
@@ -108,24 +115,29 @@ public class PaymentService {
         payment.setStatus(PaymentStatus.PENDING);
 
         // Build Midtrans transaction data
-        Map<String, Object> transactionDetails = buildTransactionDetails(orderId, totalAmount);
-        Map<String, Object> customerDetails = buildCustomerDetails(reservation);
-        List<Map<String, Object>> itemDetails = buildItemDetails(reservation, totalAmount);
+        try {
+            Map<String, Object> transactionDetails = buildTransactionDetails(orderId, totalAmount);
+            Map<String, Object> customerDetails = buildCustomerDetails(reservation);
+            List<Map<String, Object>> itemDetails = buildItemDetails(reservation, totalAmount);
 
-        Map<String, Object> params = new HashMap<>();
-        params.put("transaction_details", transactionDetails);
-        params.put("customer_details", customerDetails);
-        params.put("item_details", itemDetails);
+            Map<String, Object> params = new HashMap<>();
+            params.put("transaction_details", transactionDetails);
+            params.put("customer_details", customerDetails);
+            params.put("item_details", itemDetails);
 
-        Config midtransConfig = new Config(serverKey, clientKey, isProduction);
-        MidtransSnapApi snapApi = new ConfigFactory(midtransConfig).getSnapApi();
-        String snapToken = snapApi.createTransactionToken(params);
+            Config midtransConfig = new Config(serverKey, clientKey, isProduction);
+            MidtransSnapApi snapApi = new ConfigFactory(midtransConfig).getSnapApi();
+            String snapToken = snapApi.createTransactionToken(params);
 
-        payment.setSnapToken(snapToken);
-        payment.setPaymentType("MIDTRANS");
-        payment.setTransactionTime(LocalDateTime.now());
+            payment.setSnapToken(snapToken);
+            payment.setPaymentType("MIDTRANS");
+            payment.setTransactionTime(LocalDateTime.now());
 
-        return paymentRepository.save(payment);
+            return paymentRepository.save(payment);
+        } catch (Exception ex) {
+            reservationService.deleteAndRelease(reservation);
+            throw ex;
+        }
     }
 
     /**
@@ -230,11 +242,38 @@ public class PaymentService {
             }
 
             paymentRepository.save(payment);
+            syncReservationWithPayment(payment);
 
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Error handling payment notification: " + e.getMessage());
         }
+    }
+
+    private void syncReservationWithPayment(Payment payment) {
+        if (payment == null) {
+            return;
+        }
+        Reservation reservation = payment.getReservation();
+        if (reservation == null) {
+            return;
+        }
+        if (payment.getStatus() == PaymentStatus.SUCCESS) {
+            reservationService.confirmPayment(reservation);
+            return;
+        }
+        if (payment.getStatus() == PaymentStatus.CANCELLED
+            || payment.getStatus() == PaymentStatus.EXPIRED
+            || payment.getStatus() == PaymentStatus.FAILED) {
+            discardReservation(reservation);
+        }
+    }
+
+    private void discardReservation(Reservation reservation) {
+        if (reservation == null) {
+            return;
+        }
+        reservationService.deleteAndRelease(reservation);
     }
 
     /**
@@ -259,5 +298,130 @@ public class PaymentService {
     public Payment getLatestPaymentForReservation(Long reservationId) {
         return paymentRepository.findTop1ByReservationIdOrderByCreatedAtDesc(reservationId)
             .orElse(null);
+    }
+
+    public Payment staffConfirmPayment(Long paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+            .orElseThrow(() -> new RuntimeException("Payment not found"));
+        if (payment.getStatus() != PaymentStatus.SUCCESS) {
+            payment.setStatus(PaymentStatus.SUCCESS);
+            if (payment.getTransactionTime() == null) {
+                payment.setTransactionTime(LocalDateTime.now());
+            }
+            if (payment.getPaymentType() == null) {
+                payment.setPaymentType("CASH");
+            }
+            paymentRepository.save(payment);
+            syncReservationWithPayment(payment);
+        }
+        return payment;
+    }
+
+    public List<Map<String, Object>> getPendingPaymentViewsForStaff(int limit) {
+        List<Payment> payments = paymentRepository.findTop10ByStatusInOrderByCreatedAtDesc(
+            List.of(PaymentStatus.PENDING)
+        );
+        if (limit > 0 && payments.size() > limit) {
+            payments = payments.subList(0, limit);
+        }
+        return payments.stream().map(p -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("paymentId", p.getId());
+            m.put("orderId", p.getOrderId());
+            m.put("metode", p.getPaymentType() != null ? p.getPaymentType() : "UNKNOWN");
+            m.put("jumlah", p.getAmount() != null ? p.getAmount() : BigDecimal.ZERO);
+            m.put("dibuat", p.getCreatedAt());
+            Reservation res = p.getReservation();
+            if (res != null) {
+                m.put("reservasiId", res.getId());
+                m.put("kode", res.getCode());
+                m.put("tamu", res.getUser().getFullName());
+                m.put("kamar", res.getRoom().getNumber());
+                m.put("periode", res.getCheckIn() + " - " + res.getCheckOut());
+            }
+            return m;
+        }).toList();
+    }
+
+    public List<Map<String, Object>> getRecentPaymentViews(int limit) {
+        List<Payment> payments = paymentRepository.findTop10ByOrderByCreatedAtDesc();
+        if (limit > 0 && payments.size() > limit) {
+            payments = payments.subList(0, limit);
+        }
+        return payments.stream().map(p -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("kodeInvoice", p.getOrderId() != null ? p.getOrderId() : ("PAY-" + p.getId()));
+            m.put("metodeNama", p.getPaymentType() != null ? p.getPaymentType() : "UNKNOWN");
+            m.put("tanggal", p.getTransactionTime() != null ? p.getTransactionTime() : p.getCreatedAt());
+            m.put("jumlah", p.getAmount() != null ? p.getAmount() : BigDecimal.ZERO);
+            String status = switch (p.getStatus()) {
+                case SUCCESS -> "BERHASIL";
+                case PENDING -> "PENDING";
+                case CANCELLED -> "DIBATALKAN";
+                case EXPIRED -> "KADALUARSA";
+                case FAILED -> "GAGAL";
+            };
+            m.put("status", status);
+            return m;
+        }).toList();
+    }
+
+    public BigDecimal getTodayRevenue() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDateTime start = today.atStartOfDay();
+        java.time.LocalDateTime end = start.plusDays(1);
+        BigDecimal sum = paymentRepository.sumSuccessBetween(start, end);
+        return sum != null ? sum : BigDecimal.ZERO;
+    }
+
+    public long getPendingPaymentCount() {
+        return paymentRepository.countPendingPayments();
+    }
+
+    /**
+     * Ambil pembayaran terbaru milik tamu (untuk "Tagihan Terbaru" di dashboard tamu).
+     */
+    public Map<String, Object> getLatestPaymentViewForUser(Long userId) {
+        // Hanya tampilkan tagihan pending untuk pembayaran non-cash (online)
+        return paymentRepository.findTop10ByStatusInOrderByCreatedAtDesc(List.of(PaymentStatus.PENDING))
+            .stream()
+            .filter(p -> p.getReservation() != null && p.getReservation().getUser() != null && p.getReservation().getUser().getId().equals(userId))
+            .filter(p -> p.getPaymentType() != null && !"CASH".equalsIgnoreCase(p.getPaymentType()))
+            .findFirst()
+            .map(p -> {
+                Map<String, Object> m = new HashMap<>();
+                m.put("invoiceId", p.getId());
+                m.put("kodeInvoice", p.getOrderId() != null ? p.getOrderId() : ("INV-" + p.getId()));
+                m.put("tanggal", p.getTransactionTime() != null ? p.getTransactionTime() : p.getCreatedAt());
+                m.put("total", p.getAmount() != null ? p.getAmount() : BigDecimal.ZERO);
+                m.put("status", "MENUNGGU");
+                return m;
+            })
+            .orElse(null);
+    }
+
+    /**
+     * Tandai pembayaran Midtrans berhasil berdasarkan orderId (fallback jika webhook tidak dipicu).
+     */
+    @Transactional
+    public Payment markSuccessFromClient(String orderId) {
+        if (orderId == null || orderId.isBlank()) {
+            throw new IllegalArgumentException("Order ID tidak boleh kosong.");
+        }
+        Payment payment = paymentRepository.findByOrderId(orderId)
+            .orElseThrow(() -> new RuntimeException("Payment not found"));
+        // Untuk pembayaran cash, konfirmasi hanya boleh dari karyawan/front office
+        if (payment.getPaymentType() != null && "CASH".equalsIgnoreCase(payment.getPaymentType())) {
+            return payment;
+        }
+        if (payment.getStatus() != PaymentStatus.SUCCESS) {
+            payment.setStatus(PaymentStatus.SUCCESS);
+            if (payment.getTransactionTime() == null) {
+                payment.setTransactionTime(LocalDateTime.now());
+            }
+            paymentRepository.save(payment);
+            syncReservationWithPayment(payment);
+        }
+        return payment;
     }
 }

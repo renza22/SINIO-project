@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="id" data-bs-theme="light" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Detail Reservasi Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root{
+      --brand-primary:#689F99;
+      --brand-secondary:#1F4F4A;
+      --brand-soft:#f4f9f8;
+    }
+    body{
+      background: linear-gradient(180deg,#f7fbfa 0%,#ffffff 60%,#f7fbfa 100%);
+      font-family: 'Poppins', sans-serif;
+      color: var(--brand-secondary);
+      min-height: 100vh;
+    }
+    .navbar-sinio{ background: rgba(255,255,255,.9); border-bottom:1px solid rgba(104,159,153,.18); }
+    .card-glass{ background: rgba(255,255,255,.88); border:1px solid rgba(104,159,153,.15); box-shadow:0 20px 48px rgba(79,127,122,.12); border-radius:1.25rem; }
+    .badge-status{ border-radius:999px; padding:.4rem .9rem; font-weight:600; }
+    .badge-status.success{ background:rgba(25,135,84,.14); color:#1f7a53; }
+    .badge-status.warning{ background:rgba(255,193,7,.18); color:#b78602; }
+    .badge-status.danger{ background:rgba(220,53,69,.16); color:#c43b47; }
+    .badge-status.neutral{ background:rgba(104,159,153,.18); color:var(--brand-secondary); }
+    .section-title{ letter-spacing:.12em; text-transform:uppercase; font-size:.82rem; color:rgba(31,79,74,.6); }
+    .table-sinio thead{ background:rgba(104,159,153,.14); }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-light navbar-sinio sticky-top">
+  <div class="container-fluid px-4">
+    <a class="navbar-brand fw-semibold" href="/dashboard/admin"><i class="bi bi-arrow-left-circle me-2"></i>Dashboard Admin</a>
+    <div class="ms-auto small text-muted">
+      <div th:text="${userName}">Administrator</div>
+      <div th:text="${userEmail}">admin@sinio.com</div>
+    </div>
+  </div>
+</nav>
+
+<main class="container py-4 py-lg-5" th:object="${reservation}">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <div>
+      <p class="section-title mb-1">Detail Reservasi</p>
+      <h1 class="h4 fw-semibold mb-0" th:text="*{code}">RSV-001</h1>
+      <div class="text-muted small">Tamu: <span class="fw-semibold" th:text="*{user.fullName}">Nama Tamu</span></div>
+    </div>
+    <a class="btn btn-outline-secondary" href="/dashboard/admin#reservasi-terbaru">
+      <i class="bi bi-arrow-left"></i> Kembali
+    </a>
+  </div>
+
+  <div class="card-glass p-4 mb-4">
+    <div class="row g-3 align-items-start">
+      <div class="col-12 col-md-4">
+        <div class="text-muted small">Status</div>
+        <span class="badge-status"
+              th:classappend="${reservation.status.name() == 'CHECKED_IN' or reservation.status.name() == 'CONFIRMED'} ? ' success' :
+                              (${reservation.status.name() == 'BOOKED'} ? ' warning' :
+                              (${reservation.status.name() == 'PENDING_PAYMENT'} ? ' neutral' : ' danger'))"
+              th:text="*{status}">BOOKED</span>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="text-muted small">Check-in</div>
+        <div class="fw-semibold" th:text="${#temporals.format(reservation.checkIn,'dd MMM yyyy')}">01 Jan 2025</div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="text-muted small">Check-out</div>
+        <div class="fw-semibold" th:text="${#temporals.format(reservation.checkOut,'dd MMM yyyy')}">02 Jan 2025</div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="text-muted small">Kamar</div>
+        <div class="fw-semibold" th:text="${reservation.room.number}">101</div>
+        <div class="small text-muted" th:text="${reservation.room.type.displayName}">Deluxe</div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="text-muted small">Durasi</div>
+        <div><span th:text="${T(java.time.temporal.ChronoUnit).DAYS.between(reservation.checkIn, reservation.checkOut)}">1</span> malam</div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="text-muted small">Tarif / malam</div>
+        <div class="fw-semibold" th:text="${#numbers.formatDecimal(reservation.room.rate,0,'POINT',2,'COMMA')}">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-glass p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <p class="section-title mb-1">Pembayaran</p>
+        <h2 class="h6 fw-semibold mb-0">Status & riwayat</h2>
+      </div>
+      <a class="btn btn-sm btn-outline-primary" th:if="${payment != null}" th:href="@{'/payment/receipt'(order_id=${payment.orderId})}" target="_blank">
+        <i class="bi bi-printer"></i> Cetak Bukti
+      </a>
+    </div>
+    <div th:if="${payment != null}">
+      <div class="row g-3">
+        <div class="col-12 col-md-3">
+          <div class="text-muted small">Order ID</div>
+          <div class="fw-semibold" th:text="${payment.orderId}">ORD-1</div>
+        </div>
+        <div class="col-12 col-md-3">
+          <div class="text-muted small">Metode</div>
+          <div class="fw-semibold" th:text="${payment.paymentType != null ? payment.paymentType : 'UNKNOWN'}">MIDTRANS</div>
+        </div>
+        <div class="col-12 col-md-3">
+          <div class="text-muted small">Status</div>
+          <span class="badge-status"
+                th:classappend="${payment.status.name()=='SUCCESS' ? ' success' : (payment.status.name()=='PENDING' ? ' warning' : ' danger')}"
+                th:text="${payment.status}">PENDING</span>
+        </div>
+        <div class="col-12 col-md-3">
+          <div class="text-muted small">Jumlah</div>
+          <div class="fw-semibold" th:text="${#numbers.formatDecimal(payment.amount,0,'POINT',2,'COMMA')}">0</div>
+        </div>
+      </div>
+      <div class="mt-3 text-muted small d-flex gap-3 flex-wrap">
+        <span>Created: <span class="fw-semibold" th:text="${payment.createdAt != null ? #temporals.format(payment.createdAt,'dd MMM yyyy HH:mm') : '-'}">-</span></span>
+        <span>Transaksi: <span class="fw-semibold" th:text="${payment.transactionTime != null ? #temporals.format(payment.transactionTime,'dd MMM yyyy HH:mm') : '-'}">-</span></span>
+      </div>
+      <hr>
+      <div class="table-responsive">
+        <table class="table table-sinio align-middle mb-0">
+          <thead><tr><th>Order</th><th>Metode</th><th>Status</th><th class="text-end">Jumlah</th></tr></thead>
+          <tbody>
+          <tr th:each="p : ${payments}">
+            <td th:text="${p.orderId}">ORD-1</td>
+            <td th:text="${p.paymentType}">MIDTRANS</td>
+            <td th:text="${p.status}">SUCCESS</td>
+            <td class="text-end" th:text="${#numbers.formatDecimal(p.amount,0,'POINT',2,'COMMA')}">0</td>
+          </tr>
+          <tr th:if="${#lists.isEmpty(payments)}">
+            <td colspan="4" class="text-center text-muted">Belum ada riwayat pembayaran.</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="text-muted" th:if="${payment == null}">
+      Belum ada pembayaran tercatat untuk reservasi ini.
+    </div>
+  </div>
+
+  <div class="card-glass p-4 mb-4">
+    <p class="section-title mb-1">Layanan Tambahan</p>
+    <h2 class="h6 fw-semibold mb-3">Detail permintaan</h2>
+    <div th:if="${!#lists.isEmpty(reservation.requestedServices)}" class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Nama</th><th>Satuan</th><th class="text-end">Tarif</th></tr></thead>
+        <tbody>
+        <tr th:each="svc : ${reservation.requestedServices}">
+          <td th:text="${svc.name}">Laundry</td>
+          <td th:text="${svc.unit}">kg</td>
+          <td class="text-end fw-semibold" th:text="${#numbers.formatDecimal(svc.unitPrice ?: 0,0,'POINT',2,'COMMA')}">0</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="text-muted" th:if="${#lists.isEmpty(reservation.requestedServices)}">
+      Tidak ada layanan tambahan yang dipilih.
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

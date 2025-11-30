@@ -71,8 +71,15 @@
         <div class="text-end">
           <div class="text-muted small">Status</div>
           <span class="badge rounded-pill badge-status"
-                th:classappend="${reservation.status.name()=='BOOKED' ? ' text-bg-warning' : (reservation.status.name()=='CHECKED_IN' ? ' text-bg-success' : (reservation.status.name()=='CHECKED_OUT' ? ' text-bg-secondary' : ' text-bg-danger'))}"
-                th:text="*{status}">BOOKED</span>
+                th:with="pending=${payment != null and payment.status.name()=='PENDING'}, isCash=${pending and payment.paymentType != null and payment.paymentType.toUpperCase()=='CASH'}, label=${pending ? (isCash ? 'MENUNGGU PEMBAYARAN CASH' : 'MENUNGGU PEMBAYARAN ONLINE') : reservation.status}"
+                th:classappend="${(pending and isCash) ? ' text-bg-secondary' : ((pending and !isCash) ? ' text-bg-warning' : (reservation.status.name()=='BOOKED' ? ' text-bg-warning' : (reservation.status.name()=='CHECKED_IN' ? ' text-bg-success' : (reservation.status.name()=='CHECKED_OUT' ? ' text-bg-secondary' : ' text-bg-danger'))))}"
+                th:text="${label}">BOOKED</span>
+          <div class="mt-2" th:if="${payment != null and payment.status.name()=='PENDING' and (payment.paymentType == null or payment.paymentType.toUpperCase()!='CASH')}">
+            <a class="btn btn-sm btn-outline-tosca" th:href="@{/guest/payment/{id}(id=${reservation.id})}">
+              <i class="bi bi-qr-code"></i> Lanjutkan Pembayaran Online
+            </a>
+            <div class="small text-muted mt-1">Pilih ulang metode dan lanjutkan pembayaran online.</div>
+          </div>
         </div>
       </div>
 
