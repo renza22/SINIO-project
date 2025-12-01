@@ -14,6 +14,7 @@ import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import com.sinio.demo.model.RoomImage;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -67,6 +68,15 @@ public class Room {
     )
     @OrderBy("sortOrder ASC, id ASC")
     private List<RoomServiceOption> serviceOptions = new ArrayList<>();
+
+    @OneToMany(
+        mappedBy = "room",
+        cascade = CascadeType.ALL,
+        orphanRemoval = true,
+        fetch = FetchType.LAZY
+    )
+    @OrderBy("sortOrder ASC, id ASC")
+    private List<RoomImage> images = new ArrayList<>();
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -195,6 +205,25 @@ public class Room {
                 option.setSortOrder(i);
             }
             this.serviceOptions.add(option);
+        }
+    }
+
+    public List<RoomImage> getImages() {
+        return images;
+    }
+
+    public void setImages(List<RoomImage> images) {
+        this.images.clear();
+        if (images == null) {
+            return;
+        }
+        for (int i = 0; i < images.size(); i++) {
+            RoomImage image = images.get(i);
+            image.setRoom(this);
+            if (image.getSortOrder() == null) {
+                image.setSortOrder(i);
+            }
+            this.images.add(image);
         }
     }
 }

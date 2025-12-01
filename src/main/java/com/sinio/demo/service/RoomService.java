@@ -4,6 +4,7 @@ import com.sinio.demo.dto.RoomRequest;
 import com.sinio.demo.dto.RoomSummaryView;
 import com.sinio.demo.model.Room;
 import com.sinio.demo.model.RoomAmenity;
+import com.sinio.demo.model.RoomImage;
 import com.sinio.demo.model.RoomServiceOption;
 import com.sinio.demo.model.RoomStatus;
 import com.sinio.demo.model.RoomType;
@@ -262,6 +263,7 @@ public class RoomService {
             amenitiesNames = getDefaultAmenities(request.getType());
         }
         room.setAmenities(toAmenities(amenitiesNames, room));
+        room.setImages(toImages(parseImageEntries(request.getImageUrlsText()), room));
         // Layanan berbayar kini dikelola via halaman khusus (/admin/layanan), sehingga form kamar tidak lagi mengubahnya.
     }
 
@@ -354,6 +356,7 @@ public class RoomService {
         request.setNote(room.getNote());
         request.setLastCleanedAt(room.getLastCleanedAt());
         request.setAmenitiesText(String.join("\n", resolveFacilityNames(room)));
+        request.setImageUrlsText(String.join("\n", resolveImageEntries(room)));
         return request;
     }
 
@@ -407,6 +410,35 @@ public class RoomService {
         }
         // For view purposes, just return defaults without writing to DB.
         return getDefaultAmenities(room.getType());
+    }
+
+    public List<String> resolveImageUrls(Room room) {
+        if (room == null) {
+            return List.of();
+        }
+        return Optional.ofNullable(room.getImages()).orElse(List.of()).stream()
+            .sorted(Comparator.comparing(RoomImage::getSortOrder, Comparator.nullsLast(Integer::compareTo))
+                .thenComparing(RoomImage::getId, Comparator.nullsLast(Long::compareTo)))
+            .map(RoomImage::getUrl)
+            .filter(StringUtils::hasText)
+            .map(String::trim)
+            .toList();
+    }
+
+    public List<String> resolveImageEntries(Room room) {
+        if (room == null) {
+            return List.of();
+        }
+        return Optional.ofNullable(room.getImages()).orElse(List.of()).stream()
+            .sorted(Comparator.comparing(RoomImage::getSortOrder, Comparator.nullsLast(Integer::compareTo))
+                .thenComparing(RoomImage::getId, Comparator.nullsLast(Long::compareTo)))
+            .map(img -> {
+                String url = img.getUrl() != null ? img.getUrl().trim() : "";
+                String del = img.getDeleteUrl() != null ? img.getDeleteUrl().trim() : "";
+                return StringUtils.hasText(del) ? url + "|" + del : url;
+            })
+            .filter(StringUtils::hasText)
+            .toList();
     }
 
     public List<Facility> listFacilities() {
@@ -467,12 +499,49 @@ public class RoomService {
         String[] lines = raw.split("\\r?\\n");
         List<String> names = new ArrayList<>();
         for (String line : lines) {
-            String value = line != null ? line.trim() : "";
-            if (!value.isEmpty()) {
-                names.add(value);
+            String safe = sanitizeFacilityName(line);
+            if (safe != null) {
+                names.add(safe);
             }
         }
         return names;
+    }
+
+    private static final class ImageEntry {
+        final String url;
+        final String deleteUrl;
+
+        ImageEntry(String url, String deleteUrl) {
+            this.url = url;
+            this.deleteUrl = deleteUrl;
+        }
+    }
+
+    private List<ImageEntry> parseImageEntries(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return List.of();
+        }
+        String[] lines = raw.split("\\r?\\n");
+        List<ImageEntry> entries = new ArrayList<>();
+        for (String line : lines) {
+            if (!StringUtils.hasText(line)) {
+                continue;
+            }
+            String trimmed = line.trim();
+            String url = trimmed;
+            String deleteUrl = null;
+            String[] parts = trimmed.split("\\|", 2);
+            if (parts.length > 0) {
+                url = parts[0].trim();
+            }
+            if (parts.length > 1 && StringUtils.hasText(parts[1])) {
+                deleteUrl = parts[1].trim();
+            }
+            if (StringUtils.hasText(url)) {
+                entries.add(new ImageEntry(url, deleteUrl));
+            }
+        }
+        return entries;
     }
 
     private List<RoomServiceOption> parseServiceOptions(String raw, Room room) {
@@ -557,14 +626,42 @@ public class RoomService {
     private List<RoomAmenity> toAmenities(List<String> names, Room room) {
         List<RoomAmenity> amenities = new ArrayList<>();
         int order = 0;
-        for (String name : names) {
+        for (String name : Optional.ofNullable(names).orElse(List.of())) {
+            if (!StringUtils.hasText(name)) {
+                continue;
+            }
+            String safe = name.trim();
+            if (safe.length() > 128) {
+                safe = safe.substring(0, 128);
+            }
             RoomAmenity amenity = new RoomAmenity();
-            amenity.setName(name);
+            amenity.setName(safe);
             amenity.setSortOrder(order++);
             amenity.setRoom(room);
             amenities.add(amenity);
         }
         return amenities;
+    }
+
+    private List<RoomImage> toImages(List<ImageEntry> entries, Room room) {
+        List<RoomImage> images = new ArrayList<>();
+        int order = 0;
+        for (ImageEntry entry : Optional.ofNullable(entries).orElse(List.of())) {
+            if (entry == null || !StringUtils.hasText(entry.url)) {
+                continue;
+            }
+            RoomImage image = new RoomImage();
+            image.setRoom(room);
+            image.setUrl(entry.url.trim());
+            if (StringUtils.hasText(entry.deleteUrl)) {
+                image.setDeleteUrl(entry.deleteUrl.trim());
+            } else {
+                image.setDeleteUrl(null);
+            }
+            image.setSortOrder(order++);
+            images.add(image);
+        }
+        return images;
     }
 
     private List<String> resolveFacilityNames(Room room) {
@@ -590,8 +687,8 @@ public class RoomService {
         }
         List<String> distinct = Optional.ofNullable(names).orElse(List.of())
             .stream()
-            .filter(StringUtils::hasText)
-            .map(String::trim)
+            .map(this::sanitizeFacilityName)
+            .filter(Objects::nonNull)
             .distinct()
             .toList();
 
@@ -679,6 +776,17 @@ public class RoomService {
                 throw new IllegalStateException("Gagal menyimpan tipe kamar ke tabel referensi.", retryEx);
             }
         }
+    }
+
+    private String sanitizeFacilityName(String name) {
+        if (!StringUtils.hasText(name)) {
+            return null;
+        }
+        String trimmed = name.trim();
+        if (trimmed.length() > 128) {
+            trimmed = trimmed.substring(0, 128);
+        }
+        return trimmed;
     }
 
     private void upsertRoomTypeJoin(Room room, RoomTypeEntity master) {

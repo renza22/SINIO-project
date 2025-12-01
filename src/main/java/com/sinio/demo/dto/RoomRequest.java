@@ -48,6 +48,9 @@ public class RoomRequest {
     @Size(max = 4000, message = "Daftar layanan maksimal 4000 karakter.")
     private String servicesText;
 
+    @Size(max = 4000, message = "Daftar foto maksimal 4000 karakter.")
+    private String imageUrlsText;
+
     public Long getId() {
         return id;
     }
@@ -126,5 +129,13 @@ public class RoomRequest {
 
     public void setServicesText(String servicesText) {
         this.servicesText = servicesText;
+    }
+
+    public String getImageUrlsText() {
+        return imageUrlsText;
+    }
+
+    public void setImageUrlsText(String imageUrlsText) {
+        this.imageUrlsText = imageUrlsText;
     }
 }

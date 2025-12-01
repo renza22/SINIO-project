@@ -296,6 +296,49 @@
       color: rgba(31, 79, 74, 0.6);
     }
 
+    .image-preview-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .image-thumb {
+      position: relative;
+      width: 120px;
+      height: 90px;
+      border-radius: 0.9rem;
+      overflow: hidden;
+      background: #f2f7f6;
+      box-shadow: 0 10px 24px rgba(79, 127, 122, 0.16);
+    }
+
+    .image-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .image-thumb button {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      border: none;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      border-radius: 999px;
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+    }
+
+    .image-thumb button:hover {
+      opacity: 0.85;
+    }
+
     @media (max-width: 992px) {
       .navbar-sinio .nav-link {
         padding: 0.65rem 0.9rem;
@@ -454,15 +497,16 @@
                           type="button"
                           data-bs-toggle="modal"
                           data-bs-target="#editRoomModal"
-                          th:attr="data-id=${room.id},
-                                   data-number=${room.number},
-                                   data-type=${room.type},
-                                   data-status=${room.status},
-                                   data-rate=${room.rate},
-                                   data-capacity=${room.maxOccupancy},
-                                   data-note=${room.note},
-                                   data-cleaned=${room.lastCleanedAt != null ? #temporals.format(room.lastCleanedAt, 'yyyy-MM-dd''T''HH:mm') : ''},
-                                   data-amenities=${room.amenities != null ? #strings.listJoin(room.amenities.![name], '\n') : ''}">
+                           th:attr="data-id=${room.id},
+                                    data-number=${room.number},
+                                    data-type=${room.type},
+                                    data-status=${room.status},
+                                    data-rate=${room.rate},
+                                    data-capacity=${room.maxOccupancy},
+                                    data-note=${room.note},
+                                    data-cleaned=${room.lastCleanedAt != null ? #temporals.format(room.lastCleanedAt, 'yyyy-MM-dd''T''HH:mm') : ''},
+                                    data-amenities=${room.amenities != null ? #strings.listJoin(room.amenities.![name], '\n') : ''},
+                                    data-images=${room.images != null ? #strings.listJoin(room.images.![url + '|' + (deleteUrl != null ? deleteUrl : '')], '\n') : ''}">
                     <i class="bi bi-pencil-square"></i><span>Edit</span>
                   </button>
                   <button class="btn btn-outline-brand d-flex align-items-center gap-1"
@@ -607,6 +651,22 @@
               <div class="form-text">Klik pilihan di atas untuk menambah/menghapus, atau ketik manual satu fasilitas per baris.</div>
             </div>
             <div class="col-12">
+              <label class="form-label" for="createRoomImages">Foto Kamar</label>
+              <div class="image-preview-grid mb-2" id="createImagePreview"></div>
+              <div class="d-flex flex-column flex-md-row gap-2">
+                <input id="createRoomImages"
+                       type="file"
+                       class="form-control"
+                       accept="image/*"
+                       multiple>
+                <div class="small text-muted">Pilih beberapa foto, otomatis diunggah ke imgbb, klik pada foto untuk menghapus.</div>
+              </div>
+              <div class="small text-danger mt-1" id="createImageError"></div>
+              <textarea id="createImageUrlsText"
+                        class="d-none"
+                        th:field="*{imageUrlsText}"></textarea>
+            </div>
+            <div class="col-12">
               <div class="alert alert-info d-flex align-items-center gap-2 mb-0">
                 <i class="bi bi-info-circle"></i>
                 <span>Layanan berbayar kini dikelola di menu <strong>Kelola Layanan</strong>. Gunakan tombol pada daftar kamar untuk menambah atau mengubah layanan.</span>
@@ -733,6 +793,22 @@
               <div class="form-text">Klik pilihan di atas untuk menambah/menghapus, atau ketik manual satu fasilitas per baris.</div>
             </div>
             <div class="col-12">
+              <label class="form-label" for="editRoomImages">Foto Kamar</label>
+              <div class="image-preview-grid mb-2" id="editImagePreview"></div>
+              <div class="d-flex flex-column flex-md-row gap-2">
+                <input id="editRoomImages"
+                       type="file"
+                       class="form-control"
+                       accept="image/*"
+                       multiple>
+                <div class="small text-muted">Unggah foto baru (imgbb), klik foto untuk menghapus dari daftar.</div>
+              </div>
+              <div class="small text-danger mt-1" id="editImageError"></div>
+              <textarea id="editImageUrlsText"
+                        class="d-none"
+                        th:field="*{imageUrlsText}"></textarea>
+            </div>
+            <div class="col-12">
               <div class="alert alert-info d-flex align-items-center gap-2 mb-0">
                 <i class="bi bi-info-circle"></i>
                 <span>Layanan berbayar dikelola terpisah di halaman <strong>Layanan</strong>. Buka menu tersebut untuk menambah atau mengedit layanan kamar.</span>
@@ -783,6 +859,132 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+  const IMGBB_API_KEY = '8f7d02e7dbd5e1f24c46bf0588cdfe38';
+  const parseEntries = (text = '') => (text || '')
+    .split(/\r?\n/)
+    .map(v => v.trim())
+    .filter(v => v.length > 0)
+    .map(line => {
+      const [url, del] = line.split('|');
+      return { url: (url || '').trim(), deleteUrl: (del || '').trim() };
+    })
+    .filter(entry => entry.url.length > 0);
+  let createImageManager;
+  let editImageManager;
+
+  const setupImageManager = (inputId, previewId, textareaId, errorId, maxItems = 8) => {
+    const fileInput = document.getElementById(inputId);
+    const preview = document.getElementById(previewId);
+    const textarea = document.getElementById(textareaId);
+    const errorBox = document.getElementById(errorId);
+    if (!fileInput || !preview || !textarea) {
+      return null;
+    }
+
+    let entries = parseEntries(textarea.value);
+    const showError = (msg) => {
+      if (errorBox) {
+        errorBox.textContent = msg || '';
+      }
+    };
+
+    const render = () => {
+      preview.innerHTML = '';
+      if (!entries.length) {
+        const empty = document.createElement('div');
+        empty.className = 'text-muted small';
+        empty.textContent = 'Belum ada foto kamar.';
+        preview.appendChild(empty);
+      } else {
+        entries.forEach((entry, idx) => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'image-thumb';
+          const img = document.createElement('img');
+          img.src = entry.url;
+          img.alt = 'Foto kamar';
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.innerHTML = '&times;';
+          remove.addEventListener('click', async () => {
+            const deleted = entries.splice(idx, 1)[0];
+            if (deleted?.deleteUrl) {
+              try {
+                await fetch(deleted.deleteUrl, { method: 'GET' });
+              } catch (err) {
+                console.warn('Gagal hapus di imgbb:', err);
+              }
+            }
+            render();
+          });
+          wrapper.appendChild(img);
+          wrapper.appendChild(remove);
+          preview.appendChild(wrapper);
+        });
+      }
+      textarea.value = entries
+        .map(e => e.deleteUrl ? `${e.url}|${e.deleteUrl}` : e.url)
+        .join('\n');
+    };
+
+    const uploadFile = async (file) => {
+      if (entries.length >= maxItems) {
+        showError(`Maksimal ${maxItems} foto per kamar.`);
+        return;
+      }
+      if (!file || !file.type.startsWith('image/')) {
+        showError('Format file tidak didukung.');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        showError('Ukuran foto maksimal 5MB per file.');
+        return;
+      }
+
+      showError(`Mengunggah ${file.name}...`);
+      const formData = new FormData();
+      formData.append('image', file);
+      try {
+        const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+          method: 'POST',
+          body: formData
+        });
+        const payload = await response.json();
+        if (!payload?.success || !payload?.data?.url) {
+          throw new Error(payload?.error?.message || 'Gagal mengunggah foto.');
+        }
+        entries.push({
+          url: payload.data.url,
+          deleteUrl: payload.data.delete_url || ''
+        });
+        render();
+        showError('');
+      } catch (err) {
+        console.error(err);
+        showError(err?.message || 'Upload foto gagal. Coba lagi.');
+      }
+    };
+
+    fileInput.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
+      showError('');
+      files.forEach(uploadFile);
+      fileInput.value = '';
+    });
+
+    render();
+    return {
+      setEntries: (list) => {
+        entries = Array.isArray(list)
+          ? list
+            .map(item => typeof item === 'string' ? parseEntries(item).pop() : item)
+            .filter(Boolean)
+          : [];
+        render();
+      }
+    };
+  };
+
   const searchInput = document.getElementById('searchRoomInput');
   const roomTable = document.getElementById('roomTable');
 
@@ -850,6 +1052,7 @@
           const note = trigger.getAttribute('data-note') ?? '';
           const cleaned = trigger.getAttribute('data-cleaned') ?? '';
           const amenities = trigger.getAttribute('data-amenities') ?? '';
+          const images = trigger.getAttribute('data-images') ?? '';
 
       if (actionTemplate && id) {
         editForm.setAttribute('action', actionTemplate.replace('__ID__', id));
@@ -873,6 +1076,15 @@
           if (noteInput && !noteInput.classList.contains('is-invalid')) noteInput.value = note ?? '';
           if (cleanedInput && !cleanedInput.classList.contains('is-invalid')) cleanedInput.value = cleaned;
           if (amenitiesInput && !amenitiesInput.classList.contains('is-invalid')) amenitiesInput.value = amenities;
+          if (editImageManager) {
+            const lines = (images || '').split(/\\r?\\n/).map(v => v.trim()).filter(v => v.length > 0);
+            editForm.querySelector('#editImageUrlsText').value = lines.join('\\n');
+            const mapped = lines.map(line => {
+              const [url, del] = line.split('|');
+              return { url: (url || '').trim(), deleteUrl: (del || '').trim() };
+            }).filter(item => item.url.length > 0);
+            editImageManager.setEntries(mapped);
+          }
         });
       }
 
@@ -934,6 +1146,8 @@
     };
     const bodyDataset = document.body.dataset;
     const createForm = document.getElementById('createRoomForm');
+    createImageManager = setupImageManager('createRoomImages', 'createImagePreview', 'createImageUrlsText', 'createImageError');
+    editImageManager = setupImageManager('editRoomImages', 'editImagePreview', 'editImageUrlsText', 'editImageError');
     if (createForm && createForm.querySelector('.is-invalid')) {
       const createModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('addRoomModal'));
       createModal.show();

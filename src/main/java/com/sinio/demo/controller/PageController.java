@@ -211,6 +211,7 @@ public class PageController {
                 model.addAttribute("room", room);
                 model.addAttribute("amenities", roomService.resolveAmenities(room));
                 model.addAttribute("services", roomService.resolveServiceOptions(room));
+                model.addAttribute("images", roomService.resolveImageUrls(room));
                 return "guest_kamar_detail";
             })
             .orElseGet(() -> {
