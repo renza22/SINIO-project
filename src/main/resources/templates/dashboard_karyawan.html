@@ -94,7 +94,6 @@
     <div class="offcanvas-body">
         <ul class="navbar-nav ms-auto gap-2">
           <li class="nav-item"><a class="nav-link active" aria-current="page" href="/dashboard/karyawan">Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/kamar">Data Kamar</a></li>
           <li class="nav-item">
             <a class="nav-link" href="/logout" onclick="return confirm('Anda yakin ingin keluar dari akun karyawan?');">Keluar</a>
           </li>
@@ -118,14 +117,6 @@
     </div>
   </div>
   <div class="row g-3">
-    <div class="col-12">
-      <div class="glass p-3 d-flex flex-wrap align-items-center gap-2">
-        <span class="fw-semibold text-tosca">Fasilitas Utama:</span>
-        <span class="badge bg-light text-tosca border" th:each="fac : ${facilityOptions}" th:text="${fac}">Wi-Fi</span>
-        <span class="text-muted" th:if="${facilityOptions == null || #lists.isEmpty(facilityOptions)}">Belum ada data fasilitas. Hubungi admin untuk menambah.</span>
-      </div>
-    </div>
-
     <div class="col-12">
       <div class="card glass h-100">
         <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
