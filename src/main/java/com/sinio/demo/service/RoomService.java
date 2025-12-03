@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -114,6 +116,21 @@ public class RoomService {
         return roomRepository.findSummaries(pageable);
     }
 
+    public List<RoomServiceOption> findAllServiceOptions() {
+        return roomServiceOptionRepository.findAll(Sort.by(Sort.Order.by("name").ignoreCase()));
+    }
+
+    public List<RoomServiceOption> findDistinctServiceOptions() {
+        Map<String, RoomServiceOption> byKey = new LinkedHashMap<>();
+        roomServiceOptionRepository.findAll(Sort.by(Sort.Order.by("name").ignoreCase()))
+            .forEach(opt -> {
+                String key = (opt.getName() == null ? "" : opt.getName().trim().toLowerCase(Locale.ROOT))
+                    + "|" + (opt.getPrice() != null ? opt.getPrice().toPlainString() : "0");
+                byKey.putIfAbsent(key, opt);
+            });
+        return new ArrayList<>(byKey.values());
+    }
+
     public List<RoomSummaryView> findFeaturedSummaries(int limit) {
         if (limit > 0) {
             Pageable page = PageRequest.of(0, limit, Sort.by(Sort.Order.by("number").ignoreCase()));
@@ -142,6 +159,37 @@ public class RoomService {
         map.put("value", value);
         map.put("description", description);
         return map;
+    }
+
+    @Transactional
+    public void reconcileRoomStatuses() {
+        List<Room> rooms = roomRepository.findAll();
+        LocalDate today = LocalDate.now();
+        for (Room room : rooms) {
+            boolean hasActiveStay = stayRepository.findByRoom_Id(room.getId())
+                .stream()
+                .anyMatch(stay -> stay.getCheckoutAt() == null);
+
+            boolean hasUpcomingReservation = reservationRepository.findByRoom_Id(room.getId())
+                .stream()
+                .anyMatch(res -> (res.getStatus() == com.sinio.demo.model.ReservationStatus.BOOKED
+                    || res.getStatus() == com.sinio.demo.model.ReservationStatus.CONFIRMED)
+                    && (res.getCheckOut() == null || !res.getCheckOut().isBefore(today)));
+
+            RoomStatus desiredStatus = room.getStatus();
+            if (hasActiveStay) {
+                desiredStatus = RoomStatus.OCCUPIED;
+            } else if (hasUpcomingReservation) {
+                desiredStatus = RoomStatus.BOOKED;
+            } else if (room.getStatus() == RoomStatus.OCCUPIED || room.getStatus() == RoomStatus.BOOKED) {
+                desiredStatus = RoomStatus.AVAILABLE;
+            }
+
+            if (desiredStatus != room.getStatus()) {
+                room.setStatus(desiredStatus);
+                roomRepository.save(room);
+            }
+        }
     }
 
     public List<Map<String, String>> buildActivities(List<Room> rooms) {
@@ -496,7 +544,9 @@ public class RoomService {
         if (!StringUtils.hasText(raw)) {
             return List.of();
         }
-        String[] lines = raw.split("\\r?\\n");
+        // Normalisasi literal "\n" menjadi newline agar bisa di-split
+        String normalizedRaw = raw.replace("\\n", "\n");
+        String[] lines = normalizedRaw.split("\\r?\\n");
         List<String> names = new ArrayList<>();
         for (String line : lines) {
             String safe = sanitizeFacilityName(line);

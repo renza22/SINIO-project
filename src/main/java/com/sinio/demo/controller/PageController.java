@@ -9,6 +9,7 @@ import com.sinio.demo.dto.LoginRequest;
 import com.sinio.demo.dto.RegisterRequest;
 import com.sinio.demo.dto.RoomRequest;
 import com.sinio.demo.dto.ReservationRequest;
+import com.sinio.demo.dto.StaffReservationRequest;
 import com.sinio.demo.dto.RoomSummaryView;
 import com.sinio.demo.model.Reservation;
 import com.sinio.demo.model.Room;
@@ -40,6 +41,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.Arrays;
@@ -976,6 +978,18 @@ public class PageController {
         return null;
     }
 
+    @SuppressWarnings("unchecked")
+    private boolean hasEmployeeRole(HttpSession session, String roleCode) {
+        if (roleCode == null) {
+            return false;
+        }
+        Object roles = session.getAttribute("userRoles");
+        if (roles instanceof List<?> list) {
+            return list.stream().anyMatch(r -> roleCode.equalsIgnoreCase(String.valueOf(r)));
+        }
+        return false;
+    }
+
     private String redirectForRole(UserRole role) {
         if (role == null) {
             return "redirect:/dashboard/tamu";
@@ -1165,12 +1179,88 @@ public class PageController {
             });
     }
 
+    @GetMapping("/karyawan/reservasi/new")
+    public String staffReservationForm(
+        HttpSession session,
+        RedirectAttributes redirectAttributes,
+        Model model
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.KARYAWAN);
+        if (redirect != null) {
+            return redirect;
+        }
+        if (!hasEmployeeRole(session, "KASIR")) {
+            redirectAttributes.addFlashAttribute("employeeError", "Hanya kasir yang dapat membuat reservasi manual.");
+            return "redirect:/dashboard/karyawan";
+        }
+        populateCommonModel(session, model);
+        if (!model.containsAttribute("staffReservation")) {
+            StaffReservationRequest form = new StaffReservationRequest();
+            form.setCheckIn(LocalDate.now());
+            form.setCheckOut(LocalDate.now().plusDays(1));
+            model.addAttribute("staffReservation", form);
+        }
+        List<RoomSummaryView> rooms = roomService.findGuestSummaries().stream()
+            .filter(r -> r.getStatus() == RoomStatus.AVAILABLE)
+            .toList();
+        model.addAttribute("rooms", rooms);
+        model.addAttribute("serviceOptions", roomService.findDistinctServiceOptions());
+        return "karyawan_reservasi_new";
+    }
+
+    @PostMapping("/karyawan/reservasi")
+    public String staffCreateReservation(
+        @Valid @ModelAttribute("staffReservation") StaffReservationRequest staffReservationRequest,
+        BindingResult bindingResult,
+        HttpSession session,
+        RedirectAttributes redirectAttributes
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.KARYAWAN);
+        if (redirect != null) {
+            return redirect;
+        }
+        if (!hasEmployeeRole(session, "KASIR")) {
+            redirectAttributes.addFlashAttribute("employeeError", "Hanya kasir yang dapat membuat reservasi manual.");
+            return "redirect:/dashboard/karyawan";
+        }
+
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute(
+                "org.springframework.validation.BindingResult.staffReservation",
+                bindingResult
+            );
+            redirectAttributes.addFlashAttribute("staffReservation", staffReservationRequest);
+            return "redirect:/karyawan/reservasi/new";
+        }
+
+        try {
+            Reservation reservation = reservationService.createByStaff(staffReservationRequest);
+            redirectAttributes.addFlashAttribute(
+                "employeeSuccess",
+                "Reservasi dibuat untuk " + staffReservationRequest.getFullName() + " (kode " + reservation.getCode() + ")."
+            );
+            return "redirect:/dashboard/karyawan";
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("employeeError", ex.getMessage());
+            redirectAttributes.addFlashAttribute("staffReservation", staffReservationRequest);
+            return "redirect:/karyawan/reservasi/new";
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("employeeError", "Gagal membuat reservasi.");
+            redirectAttributes.addFlashAttribute("staffReservation", staffReservationRequest);
+            return "redirect:/karyawan/reservasi/new";
+        }
+    }
+
     // ---- Staff (Karyawan): reservation transitions ----
     @PostMapping("/karyawan/reservasi/{id}/checkin")
     public String staffCheckIn(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
         String redirect = guardRole(session, redirectAttributes, UserRole.KARYAWAN);
         if (redirect != null) {
             return redirect;
+        }
+        if (!hasEmployeeRole(session, "KASIR")) {
+            redirectAttributes.addFlashAttribute("employeeError", "Hanya kasir yang dapat melakukan check-in tamu.");
+            return "redirect:/dashboard/karyawan";
         }
         try {
             reservationService.staffCheckIn(id);
@@ -1188,6 +1278,10 @@ public class PageController {
         String redirect = guardRole(session, redirectAttributes, UserRole.KARYAWAN);
         if (redirect != null) {
             return redirect;
+        }
+        if (!hasEmployeeRole(session, "KASIR")) {
+            redirectAttributes.addFlashAttribute("employeeError", "Hanya kasir yang dapat melakukan check-out tamu.");
+            return "redirect:/dashboard/karyawan";
         }
         try {
             reservationService.staffCheckOut(id);
@@ -1209,6 +1303,10 @@ public class PageController {
         String redirect = guardRole(session, redirectAttributes, UserRole.KARYAWAN);
         if (redirect != null) {
             return redirect;
+        }
+        if (!hasEmployeeRole(session, "KASIR")) {
+            redirectAttributes.addFlashAttribute("employeeError", "Hanya kasir yang dapat mengonfirmasi pembayaran.");
+            return "redirect:/dashboard/karyawan";
         }
         try {
             paymentService.staffConfirmPayment(id);
@@ -1241,6 +1339,7 @@ public class PageController {
     }
 
     private void populateEmployeeModel(Model model) {
+        roomService.reconcileRoomStatuses();
         model.addAttribute("checkinToday", reservationService.arrivalsTodayView());
         model.addAttribute("checkoutToday", reservationService.departuresTodayView());
         model.addAttribute("inhouse", reservationService.inhouseView());

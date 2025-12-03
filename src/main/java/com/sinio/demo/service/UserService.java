@@ -28,6 +28,7 @@ import org.springframework.util.StringUtils;
 public class UserService {
 
     private static final int MIN_PASSWORD_LENGTH = 6;
+    private static final String DEFAULT_GUEST_PASSWORD = "123456";
     private static final Map<String, String> ROLE_LABELS = Map.of(
         "RESEPSIONIS", "Resepsionis",
         "HOUSEKEEPING", "Housekeeping",
@@ -214,6 +215,41 @@ public class UserService {
 
         user.setPasswordHash(passwordEncoder.encode(trimmed));
         userRepository.save(user);
+    }
+
+    @Transactional
+    public User ensureGuestAccount(String fullName, String email) {
+        String normalizedEmail = normalizeEmail(email);
+        if (!StringUtils.hasText(normalizedEmail)) {
+            throw new IllegalArgumentException("Email tamu wajib diisi.");
+        }
+
+        Optional<User> existing = userRepository.findByEmail(normalizedEmail);
+        if (existing.isPresent()) {
+            User user = existing.get();
+            if (user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.KARYAWAN) {
+                throw new IllegalArgumentException("Email ini digunakan oleh pengguna internal.");
+            }
+            if (StringUtils.hasText(fullName) && (user.getFullName() == null || !user.getFullName().equals(fullName.trim()))) {
+                user.setFullName(fullName.trim());
+                user = userRepository.save(user);
+            }
+            if (user.getRole() == null) {
+                user.setRole(UserRole.TAMU);
+                user = userRepository.save(user);
+            }
+            ensureGuestProfile(user);
+            return user;
+        }
+
+        User guest = new User();
+        guest.setFullName(fullName == null ? null : fullName.trim());
+        guest.setEmail(normalizedEmail);
+        guest.setPasswordHash(passwordEncoder.encode(DEFAULT_GUEST_PASSWORD));
+        guest.setRole(UserRole.TAMU);
+        User saved = userRepository.save(guest);
+        ensureGuestProfile(saved);
+        return saved;
     }
 
     private void ensureEmailAvailable(String normalizedEmail) {

@@ -2,6 +2,7 @@ package com.sinio.demo.service;
 
 import com.sinio.demo.dto.ReservationRequest;
 import com.sinio.demo.dto.ReservationView;
+import com.sinio.demo.dto.StaffReservationRequest;
 import com.sinio.demo.model.*;
 import com.sinio.demo.repository.ReservationRepository;
 import com.sinio.demo.repository.ReservationRoomRepository;
@@ -35,6 +36,7 @@ public class ReservationService {
     private final StayRepository stayRepository;
     private final PaymentRepository paymentRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final UserService userService;
 
     public ReservationService(
         ReservationRepository reservationRepository,
@@ -43,7 +45,8 @@ public class ReservationService {
         UserRepository userRepository,
         StayRepository stayRepository,
         PaymentRepository paymentRepository,
-        JdbcTemplate jdbcTemplate
+        JdbcTemplate jdbcTemplate,
+        UserService userService
     ) {
         this.reservationRepository = reservationRepository;
         this.reservationRoomRepository = reservationRoomRepository;
@@ -52,6 +55,7 @@ public class ReservationService {
         this.stayRepository = stayRepository;
         this.paymentRepository = paymentRepository;
         this.jdbcTemplate = jdbcTemplate;
+        this.userService = userService;
     }
 
     @Transactional
@@ -91,6 +95,20 @@ public class ReservationService {
         saved = reservationRepository.save(saved);
 
         return saved;
+    }
+
+    @Transactional
+    public Reservation createByStaff(StaffReservationRequest request) {
+        User guest = userService.ensureGuestAccount(request.getFullName(), request.getEmail());
+        ReservationRequest rr = new ReservationRequest();
+        rr.setRoomId(request.getRoomId());
+        rr.setCheckIn(request.getCheckIn());
+        rr.setCheckOut(request.getCheckOut());
+        rr.setRequestedServiceIds(request.getRequestedServiceIds());
+        Reservation saved = create(guest.getId(), rr);
+        // Manual booking oleh kasir dianggap sudah dibooking (tidak pending pembayaran online)
+        saved.setStatus(ReservationStatus.BOOKED);
+        return reservationRepository.save(saved);
     }
 
     public List<Reservation> findByUser(Long userId) {
@@ -275,8 +293,10 @@ public class ReservationService {
     public List<java.util.Map<String, Object>> arrivalsTodayView() {
         purgeOrphanReservations();
         List<ReservationStatus> statuses = List.of(ReservationStatus.BOOKED, ReservationStatus.CONFIRMED);
-        // tampilkan 20 teratas tanpa membatasi tanggal supaya reservasi yang tertunda tetap bisa di-approve
+        LocalDate today = LocalDate.now();
         return reservationRepository.findTop20ByStatusInOrderByCheckInAsc(statuses).stream()
+            .filter(r -> !r.getCheckIn().isAfter(today)) // prioritas hari ini atau overdue
+            .filter(r -> !r.getCheckOut().isBefore(today)) // masih relevan
             .filter(r -> stayRepository.findByReservation_IdAndCheckoutAtIsNull(r.getId()).isEmpty())
             .map(this::toFoRow)
             .filter(Objects::nonNull)

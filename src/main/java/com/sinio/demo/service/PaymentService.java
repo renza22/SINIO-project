@@ -137,14 +137,7 @@ public class PaymentService {
 
             Config midtransConfig = new Config(serverKey, clientKey, isProduction);
             MidtransSnapApi snapApi = new ConfigFactory(midtransConfig).getSnapApi();
-
-            // Coba prioritas QR lebih dulu; jika gagal (channel unavailable) fallback ke GoPay
-            String snapToken;
-            try {
-                snapToken = snapApi.createTransactionToken(buildSnapParams(transactionDetails, customerDetails, itemDetails, true));
-            } catch (Exception primaryEx) {
-                snapToken = snapApi.createTransactionToken(buildSnapParams(transactionDetails, customerDetails, itemDetails, false));
-            }
+            String snapToken = snapApi.createTransactionToken(buildSnapParams(transactionDetails, customerDetails, itemDetails));
 
             payment.setSnapToken(snapToken);
             payment.setPaymentType("MIDTRANS");
@@ -223,17 +216,24 @@ public class PaymentService {
 
     private Map<String, Object> buildSnapParams(Map<String, Object> transactionDetails,
                                                Map<String, Object> customerDetails,
-                                               List<Map<String, Object>> itemDetails,
-                                               boolean qrOnly) {
+                                               List<Map<String, Object>> itemDetails) {
         Map<String, Object> params = new HashMap<>();
         params.put("transaction_details", transactionDetails);
         params.put("customer_details", customerDetails);
         params.put("item_details", itemDetails);
-        if (qrOnly) {
-            params.put("enabled_payments", java.util.List.of("qris", "other_qris"));
-        } else {
-            params.put("enabled_payments", java.util.List.of("qris", "other_qris", "gopay"));
-        }
+        params.put("enabled_payments", java.util.List.of(
+            "qris",
+            "other_qris",
+            "gopay",
+            "bank_transfer",
+            "permata_va",
+            "bca_va",
+            "bni_va",
+            "bri_va",
+            "other_va",
+            "cstore",
+            "alfamart"
+        ));
         return params;
     }
 
