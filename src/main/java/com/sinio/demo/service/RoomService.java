@@ -646,10 +646,32 @@ public class RoomService {
 
     private List<RoomServiceOption> defaultServiceOptions(Room room) {
         List<RoomServiceOption> defaults = new ArrayList<>();
-        defaults.add(option(room, "Laundry", "kg", 25000, 0));
-        defaults.add(option(room, "Room dining", "porsi", 60000, 1));
-        defaults.add(option(room, "Spa (60 menit)", "sesi", 180000, 2));
-        defaults.add(option(room, "Pembersihan ekstra", "kali", 40000, 3));
+        int order = 0;
+        defaults.add(option(room, "Laundry", "kg", 25000, order++));
+        defaults.add(option(room, "Room dining", "porsi", 60000, order++));
+        defaults.add(option(room, "Pembersihan ekstra", "kali", 40000, order++));
+
+        RoomType type = room != null ? room.getType() : null;
+        boolean isHighTier = type == RoomType.SUITE_PANORAMA
+            || type == RoomType.EXECUTIVE_SUITE
+            || type == RoomType.VILLA
+            || type == RoomType.PRESIDENTIAL_SUITE;
+        boolean isMidTier = !isHighTier && (type == RoomType.DELUXE_KING
+            || type == RoomType.DELUXE_TWIN
+            || type == RoomType.FAMILY_ROOM
+            || type == RoomType.SUPERIOR_TWIN);
+
+        if (isMidTier || isHighTier) {
+            defaults.add(option(room, "Camilan Buah", "porsi", 25000, order++));
+            defaults.add(option(room, "Pick-up service", "trip", 50000, order++));
+            defaults.add(option(room, "Sewa Baby Crib", "unit", 20000, order++));
+        }
+        if (isHighTier) {
+            defaults.add(option(room, "SPA", "sesi", 500000, order++));
+            defaults.add(option(room, "Sauna", "sesi", 500000, order++));
+            defaults.add(option(room, "Transportasi", "trip", 100000, order++));
+            defaults.add(option(room, "Tour", "paket", 350000, order++));
+        }
         return defaults;
     }
 
