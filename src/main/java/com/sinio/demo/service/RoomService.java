@@ -782,11 +782,14 @@ public class RoomService {
         if (!StringUtils.hasText(name)) {
             return null;
         }
-        String trimmed = name.trim();
-        if (trimmed.length() > 128) {
-            trimmed = trimmed.substring(0, 128);
+        // hilangkan karakter newline/tab dan rapikan spasi
+        String normalized = name.replaceAll("[\\r\\n\\t]+", " ").trim();
+        // kompres spasi berlebih
+        normalized = normalized.replaceAll("\\s{2,}", " ");
+        if (normalized.length() > 128) {
+            normalized = normalized.substring(0, 128);
         }
-        return trimmed;
+        return normalized;
     }
 
     private void upsertRoomTypeJoin(Room room, RoomTypeEntity master) {

@@ -193,6 +193,17 @@
       background: rgba(104, 159, 153, 0.08);
     }
 
+    /* Ratakan lebar kolom tabel kamar di desktop */
+    @media (min-width: 992px) {
+      #roomTable th:nth-child(1), #roomTable td:nth-child(1) { width: 12%; }
+      #roomTable th:nth-child(2), #roomTable td:nth-child(2) { width: 14%; }
+      #roomTable th:nth-child(3), #roomTable td:nth-child(3) { width: 10%; }
+      #roomTable th:nth-child(4), #roomTable td:nth-child(4) { width: 12%; }
+      #roomTable th:nth-child(5), #roomTable td:nth-child(5) { width: 12%; }
+      #roomTable th:nth-child(6), #roomTable td:nth-child(6) { width: 22%; }
+      #roomTable th:nth-child(7), #roomTable td:nth-child(7) { width: 18%; }
+    }
+
     .badge-status {
       border-radius: 999px;
       font-size: 0.7rem;
