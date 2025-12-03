@@ -87,11 +87,11 @@ public class UserService {
     public User ensureRole(User user) {
         if (user.getRole() == null) {
             user.setRole(UserRole.TAMU);
-            User saved = userRepository.save(user);
-            ensureGuestProfile(saved);
-            return saved;
+            user = userRepository.save(user);
         }
-        ensureGuestProfile(user);
+        if (user.getRole() == UserRole.TAMU) {
+            ensureGuestProfile(user);
+        }
         return user;
     }
 
@@ -164,6 +164,7 @@ public class UserService {
             throw new IllegalArgumentException("Anda tidak dapat menghapus akun sendiri.");
         }
 
+        guestRepository.findByUser_Id(id).ifPresent(guestRepository::delete);
         karyawanRepository.findByUserId(id).ifPresent(karyawanRepository::delete);
         userRepository.delete(employee);
     }
