@@ -77,6 +77,47 @@
         .method-group { display: flex; gap: 12px; flex-direction: column; align-items: flex-end; text-align: right; }
         .method-group label { font-weight: 600; color: #333; }
         .note { color: #555; font-size: 13px; margin-top: 8px; text-align: right; }
+        /* Snap modal mobile override */
+        body.snap-open{ overflow:hidden; }
+        @media(max-width: 768px){
+            iframe.snap-midtrans, iframe[id^="snap-midtrans"]{
+                position: fixed !important;
+                inset: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                max-width: 100vw !important;
+                max-height: 100vh !important;
+                margin: 0 !important;
+                transform: none !important;
+                border-radius: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+            }
+            .snap-overlay, .midtrans-backdrop{
+                background: rgba(0,0,0,0.65) !important;
+            }
+        }
+        /* Embed container supaya QR tampil inline di mobile */
+        #snap-container{
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.65);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1055;
+            padding: 12px;
+        }
+        #snap-container.active{ display: flex; }
+        #snap-container iframe{
+            width: 100%;
+            height: 100%;
+            border: 0;
+            border-radius: 12px;
+            max-width: 520px;
+            max-height: 90vh;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+        }
     </style>
 </head>
 <body>
@@ -141,6 +182,8 @@
     const reservationId = /*[[${reservation.id}]]*/ '';
     const methodRadios = document.querySelectorAll('input[name="payMethod"]');
     const methodNote = document.getElementById('method-note');
+    const closeSnap = () => document.body.classList.remove('snap-open');
+    const snapContainer = document.getElementById('snap-container');
 
     function updateButtons() {
         const selected = document.querySelector('input[name="payMethod"]:checked')?.value || 'midtrans';
@@ -166,28 +209,57 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         })
-            .then(response => response.json())
+            .then(async response => {
+                let data;
+                try {
+                    data = await response.json();
+                } catch (err) {
+                    throw new Error('Server mengembalikan respons tidak valid.');
+                }
+                if (!response.ok) {
+                    const msg = data && data.message ? data.message : ('Gagal membuat transaksi (HTTP ' + response.status + ').');
+                    throw new Error(msg);
+                }
+                return data;
+            })
             .then(data => {
                 loading.classList.remove('show');
                 payButton.disabled = false;
                 cashButton.disabled = false;
 
                 if (data.success && data.snapToken) {
-                    snap.pay(data.snapToken, {
+                    const useEmbed = window.matchMedia('(max-width: 768px)').matches;
+                    document.body.classList.add('snap-open');
+                    const callbacks = {
                         onSuccess: function () {
+                            closeSnap();
+                            snapContainer?.classList.remove('active');
                             window.location.href = '/payment/success?order_id=' + data.orderId;
                         },
                         onPending: function () {
+                            closeSnap();
+                            snapContainer?.classList.remove('active');
                             window.location.href = '/payment/pending?order_id=' + data.orderId;
                         },
                         onError: function () {
+                            closeSnap();
+                            snapContainer?.classList.remove('active');
                             window.location.href = '/payment/error?order_id=' + data.orderId;
                         },
                         onClose: function () {
+                            closeSnap();
+                            snapContainer?.classList.remove('active');
                             alert('Pembayaran dibatalkan. Anda bisa mencoba lagi.');
                         }
-                    });
+                    };
+                    if (useEmbed && snap.embed) {
+                        snapContainer?.classList.add('active');
+                        snap.embed(data.snapToken, { embedId: 'snap-container', ...callbacks });
+                    } else {
+                        snap.pay(data.snapToken, callbacks);
+                    }
                 } else {
+                    closeSnap();
                     alert('Gagal membuat transaksi: ' + (data.message || 'Unknown error'));
                 }
             })
@@ -196,7 +268,8 @@
                 loading.classList.remove('show');
                 payButton.disabled = false;
                 cashButton.disabled = false;
-                alert('Gagal memproses pembayaran online. Silakan coba lagi.');
+                closeSnap();
+                alert(error?.message || 'Gagal memproses pembayaran online. Silakan coba lagi.');
             });
     });
 
@@ -231,5 +304,6 @@
             });
     });
 </script>
+<div id="snap-container"></div>
 </body>
 </html>

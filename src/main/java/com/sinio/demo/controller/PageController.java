@@ -25,6 +25,8 @@ import com.sinio.demo.service.PaymentService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Controller;
@@ -40,6 +42,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +51,8 @@ import java.util.Set;
 
 @Controller
 public class PageController {
+
+    private static final Logger log = LoggerFactory.getLogger(PageController.class);
 
     private final UserService userService;
     private final RoomService roomService;
@@ -209,7 +214,13 @@ public class PageController {
             .map(room -> {
                 populateCommonModel(session, model);
                 model.addAttribute("room", room);
-                model.addAttribute("amenities", roomService.resolveAmenities(room));
+                List<String> amenities = roomService.resolveAmenities(room);
+                List<String> flattenedAmenities = amenities.stream()
+                    .flatMap(a -> Arrays.stream(a.split("\\\\n|\\r?\\n")))
+                    .map(String::trim)
+                    .filter(s -> !s.isBlank())
+                    .toList();
+                model.addAttribute("amenities", flattenedAmenities);
                 model.addAttribute("services", roomService.resolveServiceOptions(room));
                 model.addAttribute("images", roomService.resolveImageUrls(room));
                 return "guest_kamar_detail";
@@ -260,8 +271,9 @@ public class PageController {
                 .toList();
             model.addAttribute("reservations", views);
         } catch (Exception ex) {
+            log.error("Gagal memuat daftar reservasi untuk user {}", session.getAttribute("userId"), ex);
             model.addAttribute("reservations", java.util.Collections.emptyList());
-            model.addAttribute("guestError", "Gagal memuat reservasi: " + ex.getMessage());
+            model.addAttribute("guestError", "Gagal memuat reservasi. Silakan coba lagi beberapa saat atau hubungi admin bila masalah berlanjut.");
         }
         return "guest_reservasi";
     }
@@ -382,8 +394,11 @@ public class PageController {
         }
         Long userId = (Long) session.getAttribute("userId");
         try {
-            reservationService.cancel(userId, id);
-            redirectAttributes.addFlashAttribute("guestMessage", "Reservasi berhasil dibatalkan.");
+            boolean hadPaid = reservationService.cancel(userId, id);
+            String msg = hadPaid
+                ? "Reservasi dibatalkan. Uang telah ditransfer kembali ke rekening Anda."
+                : "Reservasi berhasil dibatalkan.";
+            redirectAttributes.addFlashAttribute("guestMessage", msg);
         } catch (IllegalArgumentException ex) {
             redirectAttributes.addFlashAttribute("guestError", ex.getMessage());
         } catch (IllegalStateException ex) {

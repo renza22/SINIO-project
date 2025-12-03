@@ -82,13 +82,24 @@ public class PaymentService {
 
         // Check if payment already exists for this reservation
         List<Payment> existingPayments = paymentRepository.findByReservationId(reservationId);
+        Payment payment = null;
         for (Payment p : existingPayments) {
-            if (p.getStatus() == PaymentStatus.PENDING || p.getStatus() == PaymentStatus.SUCCESS) {
-                // Return existing pending/success payment
-                if (p.getStatus() == PaymentStatus.SUCCESS) {
-                    reservationService.confirmPayment(reservation);
-                }
+            if (p.getStatus() == PaymentStatus.SUCCESS) {
+                reservationService.confirmPayment(reservation);
                 return p;
+            }
+            if (p.getStatus() == PaymentStatus.PENDING) {
+                // jika minta cash dan sudah ada pending, pakai yang ada
+                if ("cash".equals(method)) {
+                    return p;
+                }
+                // jika pending non-Midtrans, kembalikan apa adanya
+                if (p.getPaymentType() != null && !"MIDTRANS".equalsIgnoreCase(p.getPaymentType())) {
+                    return p;
+                }
+                // pending midtrans: reuse record tapi regen snap token agar pakai konfigurasi terbaru (qris)
+                payment = p;
+                break;
             }
         }
 
@@ -98,11 +109,14 @@ public class PaymentService {
         // Generate unique order ID
         String orderId = generateOrderId(reservation);
 
-        // Create payment record
-        Payment payment = new Payment();
+        // Create or reuse payment record
+        if (payment == null) {
+            payment = new Payment();
+            payment.setReservation(reservation);
+        }
         payment.setOrderId(orderId);
-        payment.setReservation(reservation);
         payment.setAmount(totalAmount);
+        payment.setSnapToken(null);
 
         // Cash: buat catatan menunggu konfirmasi front office
         if ("cash".equals(method)) {
@@ -121,14 +135,16 @@ public class PaymentService {
             Map<String, Object> customerDetails = buildCustomerDetails(reservation);
             List<Map<String, Object>> itemDetails = buildItemDetails(reservation, totalAmount);
 
-            Map<String, Object> params = new HashMap<>();
-            params.put("transaction_details", transactionDetails);
-            params.put("customer_details", customerDetails);
-            params.put("item_details", itemDetails);
-
             Config midtransConfig = new Config(serverKey, clientKey, isProduction);
             MidtransSnapApi snapApi = new ConfigFactory(midtransConfig).getSnapApi();
-            String snapToken = snapApi.createTransactionToken(params);
+
+            // Coba prioritas QR lebih dulu; jika gagal (channel unavailable) fallback ke GoPay
+            String snapToken;
+            try {
+                snapToken = snapApi.createTransactionToken(buildSnapParams(transactionDetails, customerDetails, itemDetails, true));
+            } catch (Exception primaryEx) {
+                snapToken = snapApi.createTransactionToken(buildSnapParams(transactionDetails, customerDetails, itemDetails, false));
+            }
 
             payment.setSnapToken(snapToken);
             payment.setPaymentType("MIDTRANS");
@@ -203,6 +219,22 @@ public class PaymentService {
         }
 
         return items;
+    }
+
+    private Map<String, Object> buildSnapParams(Map<String, Object> transactionDetails,
+                                               Map<String, Object> customerDetails,
+                                               List<Map<String, Object>> itemDetails,
+                                               boolean qrOnly) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("transaction_details", transactionDetails);
+        params.put("customer_details", customerDetails);
+        params.put("item_details", itemDetails);
+        if (qrOnly) {
+            params.put("enabled_payments", java.util.List.of("qris", "other_qris"));
+        } else {
+            params.put("enabled_payments", java.util.List.of("qris", "other_qris", "gopay"));
+        }
+        return params;
     }
 
     /**

@@ -129,7 +129,7 @@ public class ReservationService {
     }
 
     @Transactional
-    public void cancel(Long userId, Long reservationId) {
+    public boolean cancel(Long userId, Long reservationId) {
         Reservation r = reservationRepository
             .findByIdAndUser_Id(reservationId, userId)
             .orElseThrow(() -> new IllegalArgumentException("Reservasi tidak ditemukan."));
@@ -137,7 +137,28 @@ public class ReservationService {
         stayRepository.findByReservation_IdAndCheckoutAtIsNull(r.getId()).ifPresent(s -> {
             throw new IllegalStateException("Reservasi sudah check-in dan tidak dapat dibatalkan.");
         });
-        deleteAndRelease(r);
+
+        // Tandai pembayaran sebagai dibatalkan dan cek apakah pernah sukses (untuk pesan refund)
+        List<Payment> payments = paymentRepository.findByReservationId(r.getId());
+        boolean hadSuccessPayment = payments != null && payments.stream().anyMatch(p -> p.getStatus() == PaymentStatus.SUCCESS);
+        if (payments != null) {
+            payments.forEach(p -> {
+                p.setStatus(PaymentStatus.CANCELLED);
+                paymentRepository.save(p);
+            });
+        }
+
+        // Perbarui status reservasi & kamar
+        r.setStatus(ReservationStatus.CANCELED);
+        reservationRepository.save(r);
+
+        Room room = safePrimaryRoom(r);
+        if (room != null) {
+            room.setStatus(RoomStatus.AVAILABLE);
+            roomRepository.save(room);
+        }
+
+        return hadSuccessPayment;
     }
 
     public Optional<Reservation> findActiveForUser(Long userId) {

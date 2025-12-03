@@ -7,6 +7,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <style>
+    html, body{ max-width:100%; overflow-x:hidden; }
     body{ background: linear-gradient(180deg,#f7fffe 0%,#f9fffd 60%,#f7fffe 100%); color:#0b4e49; }
     .navbar-glass{ backdrop-filter: blur(10px); background: rgba(255,255,255,.65) !important; border-bottom:1px solid rgba(0,0,0,.04); }
     .glass{ backdrop-filter: blur(14px) saturate(120%); background: rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.4); box-shadow: 0 6px 28px rgba(0,0,0,.12); border-radius:1rem; }
@@ -14,6 +15,54 @@
     .btn-outline-tosca{ --bs-btn-color:#0e7b71; --bs-btn-border-color:#18b7a6; --bs-btn-hover-bg:#18b7a6; --bs-btn-hover-border-color:#18b7a6; --bs-btn-focus-shadow-rgb:24,183,166; }
     .badge-soft{ background: rgba(24,183,166,.15); color:#0e7b71; }
     .table-hover tbody tr:hover{ background: rgba(24,183,166,.08); }
+    body.snap-open{ overflow:hidden; }
+    .table-responsive{ width:100%; overflow-x:auto; -webkit-overflow-scrolling: touch; }
+    @media(max-width: 768px){
+      main.container{ padding-left: 1rem !important; padding-right: 1rem !important; }
+      .table th, .table td{ white-space: normal; vertical-align: middle; }
+      .btn.btn-sm{ padding: .35rem .65rem; }
+      .d-flex.flex-wrap.gap-2{ gap:.5rem!important; }
+    }
+    /* Paksa Snap modal jadi full-screen di mobile */
+    @media(max-width: 768px){
+      iframe.snap-midtrans, iframe[id^="snap-midtrans"]{
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        margin: 0 !important;
+        transform: none !important;
+        border-radius: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+      }
+      .snap-overlay, .midtrans-backdrop{
+        background: rgba(0,0,0,0.65) !important;
+      }
+    }
+    /* Embed container supaya QR muncul inline di mobile */
+    #snap-container{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1055;
+      padding: 12px;
+    }
+    #snap-container.active{ display: flex; }
+    #snap-container iframe{
+      width: 100%;
+      height: 100%;
+      border: 0;
+      border-radius: 12px;
+      max-width: 520px;
+      max-height: 90vh;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    }
   </style>
 </head>
 <body>
@@ -118,9 +167,12 @@
   </div>
 </main>
 
+<div id="snap-container"></div>
+
 <script>
   (function() {
     const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
+    const snapContainer = document.getElementById('snap-container');
 
     function setLoading(btn, loading) {
       if (!btn) return;
@@ -139,6 +191,8 @@
     function pay(reservationId, method, btn) {
       if (!reservationId) return;
       setLoading(btn, true);
+      const useEmbed = window.matchMedia('(max-width: 768px)').matches;
+      const closeSnap = () => document.body.classList.remove('snap-open');
       fetch(`/api/payment/create/${reservationId}?method=${method}`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
         .then(resp => resp.json())
         .then(data => {
@@ -151,12 +205,19 @@
               alert('Token pembayaran tidak tersedia.');
               return;
             }
-            snap.pay(data.snapToken, {
-              onSuccess: function () { window.location.href = '/payment/success?order_id=' + data.orderId; },
-              onPending: function () { window.location.href = '/payment/pending?order_id=' + data.orderId; },
-              onError: function () { window.location.href = '/payment/error?order_id=' + data.orderId; },
-              onClose: function () { alert('Pembayaran dibatalkan. Anda bisa mencoba lagi dari halaman ini.'); }
-            });
+            document.body.classList.add('snap-open');
+            const callbacks = {
+              onSuccess: function () { closeSnap(); if (snapContainer) snapContainer.classList.remove('active'); window.location.href = '/payment/success?order_id=' + data.orderId; },
+              onPending: function () { closeSnap(); if (snapContainer) snapContainer.classList.remove('active'); window.location.href = '/payment/pending?order_id=' + data.orderId; },
+              onError: function () { closeSnap(); if (snapContainer) snapContainer.classList.remove('active'); window.location.href = '/payment/error?order_id=' + data.orderId; },
+              onClose: function () { closeSnap(); if (snapContainer) snapContainer.classList.remove('active'); alert('Pembayaran dibatalkan. Anda bisa mencoba lagi dari halaman ini.'); }
+            };
+            if (useEmbed && snap.embed) {
+              snapContainer?.classList.add('active');
+              snap.embed(data.snapToken, { embedId: 'snap-container', ...callbacks });
+            } else {
+              snap.pay(data.snapToken, callbacks);
+            }
           } else {
             alert('Reservasi dicatat dengan bayar cash. Silakan selesaikan pembayaran di hotel.');
             window.location.href = '/payment/success?order_id=' + data.orderId;
@@ -166,7 +227,10 @@
           console.error(err);
           alert('Terjadi kesalahan saat memproses pembayaran.');
         })
-        .finally(() => setLoading(btn, false));
+        .finally(() => {
+          closeSnap();
+          setLoading(btn, false);
+        });
     }
 
     document.addEventListener('click', function (e) {

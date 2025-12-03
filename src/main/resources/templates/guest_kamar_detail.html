@@ -201,11 +201,11 @@
                 <img th:src="${img}" class="d-block w-100 h-100 object-cover rounded-3" alt="Foto kamar">
               </div>
             </div>
-            <button class="carousel-control-custom prev" type="button" th:if="${images.size() > 1}" data-bs-target="#roomGallery" data-bs-slide="prev">
+            <button class="carousel-control-custom prev" type="button" th:if="${!#lists.isEmpty(images)}" data-bs-target="#roomGallery" data-bs-slide="prev">
               <span aria-hidden="true">&#8249;</span>
               <span class="visually-hidden">Sebelumnya</span>
             </button>
-            <button class="carousel-control-custom next" type="button" th:if="${images.size() > 1}" data-bs-target="#roomGallery" data-bs-slide="next">
+            <button class="carousel-control-custom next" type="button" th:if="${!#lists.isEmpty(images)}" data-bs-target="#roomGallery" data-bs-slide="next">
               <span aria-hidden="true">&#8250;</span>
               <span class="visually-hidden">Berikutnya</span>
             </button>
