@@ -1098,7 +1098,7 @@ public class PageController {
         }).toList();
         model.addAttribute("roomByType", byType);
 
-        model.addAttribute("recentReservations", reservationService.recentReservationsView());
+        model.addAttribute("recentReservations", reservationService.recentReservationsView(5));
         model.addAttribute("recentPayments", paymentService.getRecentPaymentViews(6));
         model.addAttribute("facilityOptions", roomService.getFacilityOptions());
     }
@@ -1150,6 +1150,21 @@ public class PageController {
             redirectAttributes.addFlashAttribute("facilityError", ex.getMessage());
         }
         return "redirect:/admin/fasilitas";
+    }
+
+    @GetMapping("/admin/reservasi/terbaru")
+    public String adminRecentReservations(
+        HttpSession session,
+        RedirectAttributes redirectAttributes,
+        Model model
+    ) {
+        String redirect = guardRole(session, redirectAttributes, UserRole.ADMIN);
+        if (redirect != null) {
+            return redirect;
+        }
+        populateCommonModel(session, model);
+        model.addAttribute("recentReservations", reservationService.recentReservationsView(50));
+        return "admin_reservasi_terbaru";
     }
 
     @GetMapping("/admin/reservasi/{id}")

@@ -424,9 +424,15 @@
   <section class="row g-4 mb-4" id="reservasi-terbaru">
     <div class="col-12 col-lg-7">
       <div class="card-glass h-100">
-        <div class="card-header border-0 bg-transparent px-4 pt-4">
-          <p class="section-title mb-1">Reservasi Terbaru</p>
-          <h2 class="h5 fw-semibold mb-0">Pantau kedatangan & keberangkatan tamu</h2>
+        <div class="card-header border-0 bg-transparent px-4 pt-4 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+          <div>
+            <p class="section-title mb-1">Reservasi Terbaru</p>
+            <h2 class="h5 fw-semibold mb-0">Pantau kedatangan & keberangkatan tamu</h2>
+          </div>
+          <a class="btn btn-outline-brand" href="/admin/reservasi/terbaru">
+            Lihat selengkapnya
+            <i class="bi bi-arrow-right-short ms-1"></i>
+          </a>
         </div>
         <div class="card-body px-0">
           <div class="table-responsive">
@@ -443,7 +449,7 @@
               </thead>
               <tbody>
               <tr th:each="r, iter : ${recentReservations}"
-                  th:classappend="${iter.index >= 5} ? ' d-none reservasi-extra-row' : ''">
+                  th:if="${iter.index < 5}">
                 <td class="fw-semibold" th:text="${r.kode}">RSV-0004</td>
                 <td>
                   <div th:text="${r.tamuNama}">Budi Santoso</div>
@@ -467,10 +473,8 @@
               </tbody>
             </table>
           </div>
-          <div class="px-4 pb-4" th:if="${#lists.size(recentReservations) > 5}">
-            <button type="button" class="btn btn-outline-brand w-100" id="reservasiToggle" data-expanded="false">
-              Selengkapnya
-            </button>
+          <div class="px-4 pb-4 text-muted small">
+            Menampilkan 5 reservasi terbaru. Klik tombol di atas untuk melihat daftar lebih lengkap.
           </div>
         </div>
       </div>
@@ -548,22 +552,6 @@
   </main>
 
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const toggleBtn = document.getElementById('reservasiToggle');
-    if (!toggleBtn) {
-      return;
-    }
-    const extraRows = document.querySelectorAll('.reservasi-extra-row');
-    const showAllLabel = 'Selengkapnya';
-    const collapseLabel = 'Tampilkan 5 Teratas';
-
-    toggleBtn.addEventListener('click', function () {
-      const expanded = toggleBtn.getAttribute('data-expanded') === 'true';
-      extraRows.forEach(row => row.classList.toggle('d-none', expanded));
-      toggleBtn.setAttribute('data-expanded', (!expanded).toString());
-      toggleBtn.textContent = expanded ? showAllLabel : collapseLabel;
-    });
-  });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

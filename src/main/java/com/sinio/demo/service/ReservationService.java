@@ -11,6 +11,8 @@ import com.sinio.demo.repository.UserRepository;
 import com.sinio.demo.repository.StayRepository;
 import com.sinio.demo.repository.PaymentRepository;
 import org.springframework.dao.DataAccessException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -232,12 +234,21 @@ public class ReservationService {
     }
 
     public List<Reservation> findRecent() {
+        return findRecentLimited(10);
+    }
+
+    public List<Reservation> findRecentLimited(int limit) {
+        int size = Math.max(1, limit);
         try {
-            return reservationRepository.findTop10ByOrderByCreatedAtDesc();
+            return reservationRepository
+                .findAll(PageRequest.of(0, size, Sort.by(Sort.Direction.DESC, "createdAt")))
+                .getContent();
         } catch (org.springframework.orm.jpa.JpaObjectRetrievalFailureException | jakarta.persistence.EntityNotFoundException ex) {
             purgeOrphanReservations();
             try {
-                return reservationRepository.findTop10ByOrderByCreatedAtDesc();
+                return reservationRepository
+                    .findAll(PageRequest.of(0, size, Sort.by(Sort.Direction.DESC, "createdAt")))
+                    .getContent();
             } catch (Exception retryEx) {
                 // jika data masih kotor setelah purge, kosongkan supaya dashboard tetap jalan
                 return List.of();
@@ -245,7 +256,9 @@ public class ReservationService {
         } catch (RuntimeException ex) {
             purgeOrphanReservations();
             try {
-                return reservationRepository.findTop10ByOrderByCreatedAtDesc();
+                return reservationRepository
+                    .findAll(PageRequest.of(0, size, Sort.by(Sort.Direction.DESC, "createdAt")))
+                    .getContent();
             } catch (Exception retryEx) {
                 // jika tetap gagal, kembalikan list kosong supaya dashboard tetap bisa render
                 return List.of();
@@ -258,8 +271,11 @@ public class ReservationService {
     }
 
     public List<java.util.Map<String, Object>> recentReservationsView() {
-        DateTimeFormatter shortFmt = DateTimeFormatter.ofPattern("dd MMM");
-        return findRecent().stream()
+        return recentReservationsView(10);
+    }
+
+    public List<java.util.Map<String, Object>> recentReservationsView(int limit) {
+        return findRecentLimited(limit).stream()
             .map(r -> {
                 Room room = safePrimaryRoom(r);
                 if (room == null) {
@@ -274,6 +290,9 @@ public class ReservationService {
                 m.put("checkinRencana", r.getCheckIn());
                 m.put("checkoutRencana", r.getCheckOut());
                 m.put("status", r.getStatus().name());
+                m.put("tamuEmail", r.getUser().getEmail());
+                m.put("durasiMalam", java.time.temporal.ChronoUnit.DAYS.between(r.getCheckIn(), r.getCheckOut()));
+                m.put("createdAt", r.getCreatedAt());
                 m.put("servicesSummary", formatServicesSummary(r.getRequestedServices()));
             String badge = switch (r.getStatus()) {
                 case PENDING_PAYMENT -> "secondary";
