@@ -21,5 +21,5 @@ Proyek aplikasi manajemen hotel berbasis Java + web, untuk mengelola reservasi, 
 | No | Nama            | NIM        |
 |----|-----------------|------------|
 | 1  | Renza Alvianino     | 24111814011 |
-| 2  | Rendy syahputra R     | ………………….. |
-| 3  | Helena Kusuma W     | ………………….. |
+| 2  | Rendy syahputra R     | 24111814026 |
+| 3  | Helena Kusuma W     | 24111814020 |
