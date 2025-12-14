@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="id" data-bs-theme="light">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,112 +8,238 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <style>
-    html, body{ max-width:100%; overflow-x:hidden; }
-    body{ overscroll-behavior-y: contain; }
-    main, .container, .container-fluid{ overflow-x:hidden; }
-    img, svg, video{ max-width:100%; height:auto; }
-    :root{
-      --tosca-50:#ecfdfb; --tosca-100:#cffaf4; --tosca-200:#a5f2e6;
-      --tosca-300:#73e5d3; --tosca-400:#3fd2bd; --tosca-500:#18b7a6; --tosca-600:#119a8d; --tosca-700:#0e7b71; --tosca-800:#0d625b; --tosca-900:#0b4e49;
-      --glass-bg: rgba(255,255,255,.18); --glass-stroke: rgba(255,255,255,.4); --glass-shadow: 0 6px 28px rgba(0,0,0,.18);
+    html,
+    body {
+      max-width: 100%;
+      overflow-x: hidden;
     }
-    body{
+
+    body {
+      overscroll-behavior-y: contain;
+    }
+
+    main,
+    .container,
+    .container-fluid {
+      overflow-x: hidden;
+    }
+
+    img,
+    svg,
+    video {
+      max-width: 100%;
+      height: auto;
+    }
+
+    :root {
+      --tosca-50: #ecfdfb;
+      --tosca-100: #cffaf4;
+      --tosca-200: #a5f2e6;
+      --tosca-300: #73e5d3;
+      --tosca-400: #3fd2bd;
+      --tosca-500: #18b7a6;
+      --tosca-600: #119a8d;
+      --tosca-700: #0e7b71;
+      --tosca-800: #0d625b;
+      --tosca-900: #0b4e49;
+      --glass-bg: rgba(255, 255, 255, .18);
+      --glass-stroke: rgba(255, 255, 255, .4);
+      --glass-shadow: 0 6px 28px rgba(0, 0, 0, .18);
+    }
+
+    body {
       background:
-        radial-gradient(1200px 800px at 10% -10%, rgba(24,183,166,.22), transparent 55%),
-        radial-gradient(900px 600px at 120% 30%, rgba(63,210,189,.20), transparent 55%),
+        radial-gradient(1200px 800px at 10% -10%, rgba(24, 183, 166, .22), transparent 55%),
+        radial-gradient(900px 600px at 120% 30%, rgba(63, 210, 189, .20), transparent 55%),
         linear-gradient(180deg, #f7fffe 0%, #f9fffd 60%, #f7fffe 100%);
-      min-height:100dvh; color:#0b4e49;
+      min-height: 100dvh;
+      color: #0b4e49;
     }
-    .glass{ backdrop-filter: blur(14px) saturate(120%); -webkit-backdrop-filter: blur(14px) saturate(120%); background: var(--glass-bg); border: 1px solid var(--glass-stroke); box-shadow: var(--glass-shadow); border-radius: 1rem; }
-    .navbar-glass{ backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); background: rgba(255,255,255,.55) !important; border-bottom: 1px solid var(--glass-stroke); }
-    .navbar-brand{ color: var(--tosca-700); font-weight:700; }
-    .btn-tosca{ --bs-btn-bg: var(--tosca-500); --bs-btn-border-color: var(--tosca-500); --bs-btn-hover-bg: var(--tosca-600); --bs-btn-hover-border-color: var(--tosca-600); --bs-btn-active-bg: var(--tosca-700); --bs-btn-active-border-color: var(--tosca-700); --bs-btn-color:#fff; }
-    .btn-outline-tosca{ --bs-btn-color: var(--tosca-700); --bs-btn-border-color: var(--tosca-500); --bs-btn-hover-bg: var(--tosca-500); --bs-btn-hover-border-color: var(--tosca-500); --bs-btn-active-bg: var(--tosca-600); --bs-btn-active-border-color: var(--tosca-600); }
-    .text-tosca{ color: var(--tosca-600); }
-    .table.table-striped>tbody>tr:nth-of-type(odd){ --bs-table-accent-bg: rgba(24,183,166,.05); }
-    .table.table-hover tbody tr:hover{ background: rgba(24,183,166,.09); }
-    .table-kaca thead{ position: sticky; top: 0; z-index: 1; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); background: rgba(255,255,255,.75); border-bottom: 1px solid var(--glass-stroke); }
-    @media (max-width: 576px){
-      .container{ padding-left:.75rem !important; padding-right:.75rem !important; }
-      .card .card-body{ padding: 1rem; }
-      .btn{ padding:.5rem .75rem; }
+
+    .glass {
+      backdrop-filter: blur(14px) saturate(120%);
+      -webkit-backdrop-filter: blur(14px) saturate(120%);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-stroke);
+      box-shadow: var(--glass-shadow);
+      border-radius: 1rem;
+    }
+
+    .navbar-glass {
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, .55) !important;
+      border-bottom: 1px solid var(--glass-stroke);
+    }
+
+    .navbar-brand {
+      color: var(--tosca-700);
+      font-weight: 700;
+    }
+
+    .btn-tosca {
+      --bs-btn-bg: var(--tosca-500);
+      --bs-btn-border-color: var(--tosca-500);
+      --bs-btn-hover-bg: var(--tosca-600);
+      --bs-btn-hover-border-color: var(--tosca-600);
+      --bs-btn-active-bg: var(--tosca-700);
+      --bs-btn-active-border-color: var(--tosca-700);
+      --bs-btn-color: #fff;
+    }
+
+    .btn-outline-tosca {
+      --bs-btn-color: var(--tosca-700);
+      --bs-btn-border-color: var(--tosca-500);
+      --bs-btn-hover-bg: var(--tosca-500);
+      --bs-btn-hover-border-color: var(--tosca-500);
+      --bs-btn-active-bg: var(--tosca-600);
+      --bs-btn-active-border-color: var(--tosca-600);
+    }
+
+    .text-tosca {
+      color: var(--tosca-600);
+    }
+
+    .table.table-striped>tbody>tr:nth-of-type(odd) {
+      --bs-table-accent-bg: rgba(24, 183, 166, .05);
+    }
+
+    .table.table-hover tbody tr:hover {
+      background: rgba(24, 183, 166, .09);
+    }
+
+    .table-kaca thead {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, .75);
+      border-bottom: 1px solid var(--glass-stroke);
+    }
+
+    @media (max-width: 576px) {
+      .container {
+        padding-left: .75rem !important;
+        padding-right: .75rem !important;
+      }
+
+      .card .card-body {
+        padding: 1rem;
+      }
+
+      .btn {
+        padding: .5rem .75rem;
+      }
     }
   </style>
 </head>
+
 <body>
   <nav class="navbar navbar-expand-lg navbar-glass sticky-top">
     <div class="container-fluid">
       <a class="navbar-brand" href="/dashboard/tamu"
-         th:text="${'SINIO ' + (userName != null ? userName : 'Tamu')}">SINIO</a>
+        th:text="${'SINIO ' + (userName != null ? userName : 'Tamu')}">SINIO</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
         <span class="navbar-toggler-icon"></span>
       </button>
-    <div class="collapse navbar-collapse" id="nav">
-      <ul class="navbar-nav ms-auto">
-        <li class="nav-item"><a class="nav-link" href="/guest">Dashboard</a></li>
-        <li class="nav-item"><a class="nav-link" href="/guest/akun">Akun</a></li>
-        <li class="nav-item"><a class="nav-link" href="/logout" onclick="return confirm('Yakin ingin keluar dari akun?');">Keluar</a></li>
-      </ul>
+      <div class="collapse navbar-collapse" id="nav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item"><a class="nav-link" href="/guest">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="/guest/akun">Akun</a></li>
+          <li class="nav-item"><a class="nav-link" href="/logout"
+              onclick="return confirm('Yakin ingin keluar dari akun?');">Keluar</a></li>
+        </ul>
+      </div>
     </div>
-  </div>
   </nav>
 
-<main class="container p-3 p-md-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 m-0 text-tosca">Pilih Kamar</h1>
-    <a class="btn btn-outline-tosca btn-sm" href="/guest">Kembali</a>
-  </div>
-
-  <div class="row g-3">
-    <div class="col-12">
-      <div class="input-group glass">
-        <span class="input-group-text"><i class="bi bi-search"></i></span>
-        <input class="form-control" placeholder="Cari nomor kamar atau tipe..." oninput="filterKamar(this.value)">
-      </div>
-      <small class="text-muted">Pilihan Kamar</small>
+  <main class="container p-3 p-md-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h1 class="h4 m-0 text-tosca">Pilih Kamar</h1>
+      <a class="btn btn-outline-tosca btn-sm" href="/guest">Kembali</a>
     </div>
 
-    <div class="col-12">
-      <div class="row g-3" id="gridKamar">
-        <div class="col-12 col-md-6 col-lg-4" th:each="r : ${rooms}" th:data-key="${r.number + ' ' + r.type}">
-          <div class="card glass h-100">
-            <div class="card-body d-flex flex-column">
-              <div class="d-flex justify-content-between">
-                <h2 class="h5" th:text="${'Kamar ' + r.number}">Kamar 101</h2>
-                <span class="badge" th:classappend="${r.status.name()=='AVAILABLE' ? ' text-bg-success' : (r.status.name()=='BOOKED' ? ' text-bg-warning' : ' text-bg-secondary') }" th:text="${r.status.displayName}">Tersedia</span>
-              </div>
-              <div class="text-muted" th:text="${r.type.displayName}">Deluxe King</div>
-              <div class="fw-semibold mt-2" th:text="${#numbers.formatDecimal(r.rate,0,'POINT',2,'COMMA')}">800.000</div>
-              <div class="mt-auto pt-3">
-                <a class="btn btn-tosca w-100" th:href="@{/guest/kamar/{id}(id=${r.id})}"><i class="bi bi-info-circle"></i> Lihat Detail</a>
-              </div>
+    <div class="row g-3">
+      <div class="col-12">
+        <form class="d-flex flex-column flex-lg-row align-items-lg-center gap-2" method="get">
+          <div class="flex-grow-1">
+            <div class="input-group glass">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input class="form-control" placeholder="Cari nomor kamar atau tipe..." oninput="filterKamar(this.value)">
             </div>
           </div>
-        </div>
-        <div class="col-12" th:if="${#lists.isEmpty(rooms)}">
-          <div class="alert glass">Belum ada data kamar. Silakan hubungi admin.</div>
-        </div>
+          <div class="flex-shrink-0" style="min-width: 160px; max-width: 220px;">
+            <input type="hidden" name="page" value="0">
+            <input type="hidden" name="size" th:value="${pageSize}">
+            <div class="input-group glass">
+              <span class="input-group-text"><i class="bi bi-sort-down"></i></span>
+              <select class="form-select" name="sort" onchange="this.form.submit()">
+                <option value="number" th:selected="${currentSort == 'number'}">Nomor kamar</option>
+                <option value="type" th:selected="${currentSort == 'type'}">Jenis kamar</option>
+                <option value="price-asc" th:selected="${currentSort == 'price-asc'}">Termurah</option>
+                <option value="price-desc" th:selected="${currentSort == 'price-desc'}">Termahal</option>
+              </select>
+            </div>
+          </div>
+        </form>
+        <small class="text-muted">Pilihan Kamar</small>
       </div>
-    </div>
-    <div class="col-12 d-flex align-items-center justify-content-between" th:if="${totalPages > 1}">
-      <div class="text-muted small" th:text="${'Halaman ' + (page + 1) + ' dari ' + totalPages}">Halaman 1 dari 3</div>
-      <div class="btn-group">
-        <a class="btn btn-outline-tosca btn-sm" th:classappend="${!hasPrev} ? ' disabled'" th:href="@{/guest/kamar(page=${page-1}, size=${pageSize})}">Sebelumnya</a>
-        <a class="btn btn-outline-tosca btn-sm" th:classappend="${!hasNext} ? ' disabled'" th:href="@{/guest/kamar(page=${page+1}, size=${pageSize})}">Berikutnya</a>
-      </div>
-    </div>
-  </div>
-</main>
 
-<script>
-  function filterKamar(q){
-    q = (q||'').toLowerCase();
-    document.querySelectorAll('#gridKamar [data-key]').forEach(function(card){
-      const show = card.getAttribute('data-key').toLowerCase().includes(q);
-      card.style.display = show ? '' : 'none';
-    });
-  }
+      <div class="col-12">
+        <div class="row g-3" id="gridKamar">
+          <div class="col-12" th:if="${#lists.isEmpty(rooms)}">
+            <div class="alert glass">Belum ada data kamar. Silakan hubungi admin.</div>
+          </div>
+
+          <th:block th:each="r, iter : ${rooms}" th:with="prevType=${iter.index > 0 ? rooms[iter.index-1].type : null}">
+            <div class="col-12" th:if="${currentSort == 'type' and (prevType == null or prevType != r.type)}">
+              <div class="d-flex align-items-center gap-2 mt-2">
+                <div class="fw-semibold text-tosca text-uppercase small" th:text="${r.type.displayName}">Deluxe</div>
+                <div class="flex-grow-1 border-top" style="border-color: rgba(0,0,0,.08)!important;"></div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6 col-lg-4" th:data-key="${r.number + ' ' + r.type}">
+              <div class="card glass h-100">
+                <div class="card-body d-flex flex-column">
+                  <h2 class="h5" th:text="${'Kamar ' + r.number}">Kamar 101</h2>
+                  <div class="text-muted" th:text="${r.type.displayName}">Deluxe King</div>
+                  <div class="fw-semibold mt-2" th:text="${#numbers.formatDecimal(r.rate,0,'POINT',2,'COMMA')}">800.000
+                  </div>
+                  <div class="mt-auto pt-3">
+                    <a class="btn btn-tosca w-100" th:href="@{/guest/kamar/{id}(id=${r.id})}"><i
+                        class="bi bi-info-circle"></i> Lihat Detail</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </th:block>
+        </div>
+      </div>
+      <div class="col-12 d-flex align-items-center justify-content-between" th:if="${totalPages > 1}">
+        <div class="text-muted small" th:text="${'Halaman ' + (page + 1) + ' dari ' + totalPages}">Halaman 1 dari 3
+        </div>
+        <div class="btn-group">
+          <a class="btn btn-outline-tosca btn-sm" th:classappend="${!hasPrev} ? ' disabled'"
+            th:href="@{/guest/kamar(page=${page-1}, size=${pageSize}, sort=${currentSort})}">Sebelumnya</a>
+          <a class="btn btn-outline-tosca btn-sm" th:classappend="${!hasNext} ? ' disabled'"
+            th:href="@{/guest/kamar(page=${page+1}, size=${pageSize}, sort=${currentSort})}">Berikutnya</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    function filterKamar(q) {
+      q = (q || '').toLowerCase();
+      document.querySelectorAll('#gridKamar [data-key]').forEach(function (card) {
+        const show = card.getAttribute('data-key').toLowerCase().includes(q);
+        card.style.display = show ? '' : 'none';
+      });
+    }
   </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

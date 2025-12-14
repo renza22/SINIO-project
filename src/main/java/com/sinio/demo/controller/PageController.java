@@ -188,14 +188,15 @@ public class PageController {
         RedirectAttributes redirectAttributes,
         Model model,
         @RequestParam(name = "page", defaultValue = "0") int page,
-        @RequestParam(name = "size", defaultValue = "12") int size
+        @RequestParam(name = "size", defaultValue = "12") int size,
+        @RequestParam(name = "sort", defaultValue = "number") String sort
     ) {
         String redirect = guardRole(session, redirectAttributes, UserRole.TAMU);
         if (redirect != null) {
             return redirect;
         }
         populateCommonModel(session, model);
-        Page<RoomSummaryView> roomsPage = roomService.findGuestSummaries(page, size);
+        Page<RoomSummaryView> roomsPage = roomService.findGuestSummaries(page, size, sort);
         model.addAttribute("rooms", roomsPage.getContent());
         model.addAttribute("page", roomsPage.getNumber());
         model.addAttribute("pageSize", roomsPage.getSize());
@@ -203,6 +204,7 @@ public class PageController {
         model.addAttribute("hasPrev", roomsPage.hasPrevious());
         model.addAttribute("hasNext", roomsPage.hasNext());
         model.addAttribute("roomTypes", roomService.getRoomTypes());
+        model.addAttribute("currentSort", sort);
         return "guest_kamar";
     }
 
@@ -225,6 +227,7 @@ public class PageController {
                 model.addAttribute("amenities", flattenedAmenities);
                 model.addAttribute("services", roomService.resolveServiceOptions(room));
                 model.addAttribute("images", roomService.resolveImageUrls(room));
+                model.addAttribute("bookedDates", reservationService.getBookedRangesForRoom(room.getId()));
                 return "guest_kamar_detail";
             })
             .orElseGet(() -> {

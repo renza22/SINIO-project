@@ -145,6 +145,54 @@
     .table.table-hover tbody tr:hover {
       background: rgba(24, 183, 166, .09);
     }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+    }
+
+    .calendar-cell {
+      border-radius: 10px;
+      padding: 6px 4px;
+      min-height: 56px;
+      font-size: 0.9rem;
+      background: rgba(0, 0, 0, 0.02);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+    }
+
+    .calendar-cell.muted {
+      color: #9aa3a7;
+      background: transparent;
+    }
+
+    .calendar-cell.booked {
+      background: rgba(239, 68, 68, 0.14);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #7a1c1c;
+      position: relative;
+    }
+
+    .calendar-cell.booked .badge-guest {
+      font-size: 0.7rem;
+      background: rgba(122, 28, 28, 0.08);
+      border-radius: 6px;
+      padding: 2px 4px;
+      line-height: 1.1;
+      max-width: 100%;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .calendar-cell .day-number {
+      font-weight: 600;
+      line-height: 1.2;
+    }
   </style>
 </head>
 
@@ -247,6 +295,27 @@
             <div class="text-danger small mt-2" th:if="${guestError != null}" th:text="${guestError}"></div>
           </div>
         </div>
+
+        <div class="card glass mt-3" id="availabilityCard" th:data-booked="${bookedDates}">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <strong>Kalender Ketersediaan</strong>
+              <div class="d-flex align-items-center gap-2">
+                <small class="text-muted me-2">Merah = sudah dibooking</small>
+                <div class="btn-group btn-group-sm">
+                  <button type="button" class="btn btn-outline-secondary" id="prevMonthBtn" disabled>&laquo;</button>
+                  <button type="button" class="btn btn-outline-secondary" id="nextMonthBtn">&raquo;</button>
+                </div>
+              </div>
+            </div>
+            <div class="row g-3">
+              <div class="col-12">
+                <div class="mb-2 fw-semibold" id="monthLabel0"></div>
+                <div class="calendar-grid small" id="calendarGrid0" aria-live="polite"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="col-12 col-lg-7">
@@ -326,7 +395,7 @@
     </div>
   </main>
 
-  <script>
+  <script th:inline="javascript">
     (function () {
       const summaryCard = document.getElementById('reservationSummary');
       if (!summaryCard) return;
@@ -337,10 +406,10 @@
       const checkboxes = document.querySelectorAll('.service-checkbox');
       const summaryList = document.getElementById('selectedServiceList');
       const totalEl = document.getElementById('summaryTotal');
+      const bookedRanges = /*[[${bookedDates}]]*/ [];
       let lastTotal = 0;
 
       function renderSummary() {
-        // hitung lama inap
         let nights = 1;
         if (checkInInput && checkOutInput && checkInInput.value && checkOutInput.value) {
           const cin = new Date(checkInInput.value);
@@ -376,8 +445,159 @@
         }
       }
 
-      checkboxes.forEach(cb => cb.addEventListener('change', renderSummary));
-      renderSummary();
+      function parseDateOnly(str) {
+        const [y, m, d] = str.split('-').map(Number);
+        return new Date(y, m - 1, d);
+      }
+
+      function expandBookedDates() {
+        const map = new Map();
+        bookedRanges.forEach(b => {
+          if (!b.start || !b.end) return;
+          const start = typeof b.start === 'string' ? parseDateOnly(b.start) : new Date(b.start);
+          const end = typeof b.end === 'string' ? parseDateOnly(b.end) : new Date(b.end);
+          for (let dt = new Date(start); dt < end; dt.setDate(dt.getDate() + 1)) {
+            const key = dt.toISOString().slice(0, 10);
+            const existing = map.get(key) || new Set();
+            existing.add(b.guest || 'Sudah dibooking');
+            map.set(key, existing);
+          }
+        });
+        return map;
+      }
+
+      const bookedMap = expandBookedDates();
+
+      function isBlocked(dateStr) {
+        return bookedMap.has(dateStr);
+      }
+
+      function validateSelection() {
+        if (!checkInInput || !checkOutInput || !checkInInput.value || !checkOutInput.value) return;
+        const cin = new Date(checkInInput.value);
+        const cout = new Date(checkOutInput.value);
+        let hasBlocked = false;
+        for (let d = new Date(cin); d < cout; d.setDate(d.getDate() + 1)) {
+          const key = d.toISOString().slice(0, 10);
+          if (isBlocked(key)) {
+            hasBlocked = true;
+            break;
+          }
+        }
+        if (hasBlocked) {
+          alert('Tanggal yang dipilih bertabrakan dengan booking lain. Silakan pilih rentang lain.');
+          checkInInput.value = '';
+          checkOutInput.value = '';
+          renderSummary();
+        }
+      }
+
+      let currentOffset = 0;
+
+      function renderCalendar(monthOffset, gridId, labelId) {
+        const grid = document.getElementById(gridId);
+        const label = document.getElementById(labelId);
+        if (!grid || !label) return;
+        grid.innerHTML = '';
+        const today = new Date();
+        const first = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+        const month = first.getMonth();
+        const year = first.getFullYear();
+        label.textContent = first.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+
+        const startDay = (new Date(year, month, 1).getDay() + 6) % 7; // Senin sebagai awal pekan
+        for (let i = 0; i < startDay; i++) {
+          const cell = document.createElement('div');
+          cell.className = 'calendar-cell muted';
+          grid.appendChild(cell);
+        }
+
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        for (let d = 1; d <= daysInMonth; d++) {
+          const date = new Date(year, month, d);
+          const key = date.toISOString().slice(0, 10);
+          const cell = document.createElement('div');
+          cell.className = 'calendar-cell';
+
+          const dayNumber = document.createElement('div');
+          dayNumber.className = 'day-number';
+          dayNumber.textContent = d;
+          cell.appendChild(dayNumber);
+
+          if (bookedMap.has(key)) {
+            cell.classList.add('booked');
+            const guests = Array.from(bookedMap.get(key) || []);
+            const badge = document.createElement('span');
+            badge.className = 'badge-guest';
+            badge.textContent = guests.join(', ');
+            cell.appendChild(badge);
+            cell.title = 'Dibooking: ' + guests.join(', ');
+          }
+          grid.appendChild(cell);
+        }
+      }
+
+      function updateNavButtons() {
+        const prev = document.getElementById('prevMonthBtn');
+        const next = document.getElementById('nextMonthBtn');
+        if (prev) prev.disabled = currentOffset <= 0;
+        if (next) next.disabled = currentOffset >= 3; // limit 3 bulan ke depan
+      }
+
+      function renderAllCalendars() {
+        renderCalendar(currentOffset, 'calendarGrid0', 'monthLabel0');
+        updateNavButtons();
+      }
+
+      function initListeners() {
+        if (checkInInput) {
+          checkInInput.addEventListener('change', () => {
+            if (checkOutInput && checkOutInput.value && checkOutInput.value < checkInInput.value) {
+              checkOutInput.value = '';
+            }
+            renderSummary();
+            validateSelection();
+          });
+        }
+        if (checkOutInput) {
+          checkOutInput.addEventListener('change', () => {
+            if (checkInInput && checkOutInput.value && checkOutInput.value <= checkInInput.value) {
+              alert('Tanggal check-out harus setelah check-in.');
+              checkOutInput.value = '';
+            }
+            renderSummary();
+            validateSelection();
+          });
+        }
+        checkboxes.forEach(cb => cb.addEventListener('change', renderSummary));
+
+        const prev = document.getElementById('prevMonthBtn');
+        const next = document.getElementById('nextMonthBtn');
+        if (prev) {
+          prev.addEventListener('click', () => {
+            if (currentOffset > 0) {
+              currentOffset -= 1;
+              renderAllCalendars();
+            }
+          });
+        }
+        if (next) {
+          next.addEventListener('click', () => {
+            if (currentOffset < 3) {
+              currentOffset += 1;
+              renderAllCalendars();
+            }
+          });
+        }
+      }
+
+      function init() {
+        renderSummary();
+        initListeners();
+        renderAllCalendars();
+      }
+
+      init();
     })();
   </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

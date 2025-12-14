@@ -106,14 +106,40 @@ public class RoomService {
     }
 
     public List<RoomSummaryView> findGuestSummaries() {
-        return roomRepository.findAllSummaries();
+        // Default sort by room number for backward compatibility
+        return roomRepository.findSummaries(PageRequest.of(0, Integer.MAX_VALUE, Sort.by(Sort.Order.by("number").ignoreCase())))
+            .getContent();
     }
 
     public Page<RoomSummaryView> findGuestSummaries(int page, int size) {
+        return findGuestSummaries(page, size, "number");
+    }
+
+    public Page<RoomSummaryView> findGuestSummaries(int page, int size, String sortOption) {
         int safeSize = Math.max(6, Math.min(size, 30)); // guard extremes to keep responses small
         int safePage = Math.max(page, 0);
-        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Order.by("number").ignoreCase()));
+        Sort sort = resolveGuestSort(sortOption);
+        Pageable pageable = PageRequest.of(safePage, safeSize, sort);
         return roomRepository.findSummaries(pageable);
+    }
+
+    private Sort resolveGuestSort(String sortOption) {
+        String key = sortOption == null ? "" : sortOption.trim().toLowerCase(Locale.ROOT);
+        return switch (key) {
+            case "type", "jenis" -> Sort.by(
+                Sort.Order.by("type"),
+                Sort.Order.by("number").ignoreCase()
+            );
+            case "price-desc", "harga-desc", "rate-desc" -> Sort.by(
+                new Sort.Order(Sort.Direction.DESC, "rate"),
+                Sort.Order.by("number").ignoreCase()
+            );
+            case "price-asc", "harga-asc", "rate-asc" -> Sort.by(
+                Sort.Order.by("rate"),
+                Sort.Order.by("number").ignoreCase()
+            );
+            default -> Sort.by(Sort.Order.by("number").ignoreCase());
+        };
     }
 
     public List<RoomServiceOption> findAllServiceOptions() {
@@ -904,4 +930,3 @@ public class RoomService {
         }};
     }
 }
-

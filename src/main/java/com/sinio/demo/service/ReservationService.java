@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -264,6 +265,36 @@ public class ReservationService {
                 return List.of();
             }
         }
+    }
+
+    /**
+     * Mengambil rentang tanggal ter-booking untuk satu kamar (hanya kamar ini).
+     * Hanya status aktif/akan datang yang diblok: PENDING_PAYMENT, BOOKED, CONFIRMED, CHECKED_IN.
+     */
+    public List<Map<String, Object>> getBookedRangesForRoom(Long roomId) {
+        if (roomId == null) {
+            return List.of();
+        }
+        List<ReservationStatus> blockingStatuses = List.of(
+            ReservationStatus.PENDING_PAYMENT,
+            ReservationStatus.BOOKED,
+            ReservationStatus.CONFIRMED,
+            ReservationStatus.CHECKED_IN
+        );
+        LocalDate today = LocalDate.now();
+        return reservationRepository.findByRoom_Id(roomId).stream()
+            .filter(r -> r.getCheckOut() != null && r.getCheckIn() != null)
+            .filter(r -> blockingStatuses.contains(r.getStatus()))
+            .filter(r -> !r.getCheckOut().isBefore(today)) // skip yang sudah lewat
+            .map(r -> {
+                Map<String, Object> m = new java.util.HashMap<>();
+                m.put("start", r.getCheckIn());
+                m.put("end", r.getCheckOut()); // exclusive secara display nanti
+                m.put("guest", r.getUser() != null ? r.getUser().getFullName() : "Tamu");
+                m.put("nights", ChronoUnit.DAYS.between(r.getCheckIn(), r.getCheckOut()));
+                return m;
+            })
+            .toList();
     }
 
     public Optional<Reservation> findById(Long id) {

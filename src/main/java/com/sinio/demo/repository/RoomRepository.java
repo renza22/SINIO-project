@@ -14,8 +14,7 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     Optional<Room> findByNumberIgnoreCase(String number);
     boolean existsByNumberIgnoreCaseAndIdNot(String number, Long id);
 
-    @Query("select new com.sinio.demo.dto.RoomSummaryView(r.id, r.number, r.type, r.status, r.rate) " +
-        "from Room r order by lower(r.number)")
+    @Query("select new com.sinio.demo.dto.RoomSummaryView(r.id, r.number, r.type, r.status, r.rate) from Room r")
     Page<RoomSummaryView> findSummaries(Pageable pageable);
 
     default List<RoomSummaryView> findAllSummaries() {
